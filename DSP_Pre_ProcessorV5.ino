@@ -778,6 +778,9 @@ void setup(void) {
   nav.idleTask = idle; //point a function to be used when menu is suspended
   nav.useUpdateEvent = true;
   //Serial.println("Here2");
+   
+  display.setFontPosBottom(); 
+   
 }
 
 elapsedMillis fps;
