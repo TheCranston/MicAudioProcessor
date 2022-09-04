@@ -738,7 +738,7 @@ void setup(void) {
   display.setPrintPos(0, 40);
   Timer1.initialize(500);
   Timer1.attachInterrupt(timerIsr);
-
+ 
   AudioMemory(100);
   audioShield.enable();
 
@@ -766,8 +766,7 @@ void setup(void) {
   display.clearScreen();
   display.setPrintPos(0, 100);
   //Serial.println("Here");
-  display.print("Here");
-
+  display.setFontPosBottom(); 
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   //if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
   //  //Serial.println(F("SSD1306 allocation failed"));
@@ -778,9 +777,6 @@ void setup(void) {
   nav.idleTask = idle; //point a function to be used when menu is suspended
   nav.useUpdateEvent = true;
   //Serial.println("Here2");
-   
-  display.setFontPosBottom(); 
-   
 }
 
 elapsedMillis fps;
@@ -981,23 +977,28 @@ void displayAudioSpectrum() {
   int peakM = 0;
   int mVal = 0;
 
-  if (fps > 24) {
+  if (fps > 1) {
+  
     fps = 0;
     if (peakPre.available()) {
       peak = peakPre.read();
       peakM = map(peak, 0.0, 1.0, 0, 128);
+      display.setColor(0,0,0);
       //display.drawFastHLine(0, 12, 128, SSD1306_BLACK);
       display.drawHLine(0,12,128); //csl
     }
     //display.drawFastHLine(0, 12, peakM, SSD1306_WHITE);
+    display.setColor(255,255,255);
     display.drawHLine(0,12,peakM); //csl
     if (peakPost.available()) {
       peak = peakPost.read();
       peakM = map(peak, 0.0, 1.0, 0, 128);
+      display.setColor(0,0,0);
       //display.drawFastHLine(0, 15, 128, SSD1306_BLACK);
       display.drawHLine(0,15,128); //csl
     }
     //display.drawFastHLine(0, 15, peakM, SSD1306_WHITE);
+    display.setColor(255,255,255);
     display.drawHLine(0,15,peakM); //csl
     
     if (fftValues.available()) {
@@ -1010,14 +1011,17 @@ void displayAudioSpectrum() {
     int x = posX + bar * barWidth;
 
     //display.drawFastVLine(x, 13, 51, SSD1306_BLACK);
+    display.setColor(0,0,0);    
     display.drawVLine(x,13,51); //csl
     //display.drawFastVLine(x, posY - mVal, posY, SSD1306_WHITE);
-    display.drawVLine(x,13,51); //csl
+    display.setColor(255,255,255);
+    display.drawVLine(x,posY-mVal,posY); //csl
     //Serial.println();
     //Serial.print(" maxVal: "); //Serial.print(maxVal); //Serial.print(" bar: "); //Serial.print(bar); //Serial.print(" val: "); //Serial.print(val); //Serial.print(" mVal: "); //Serial.print(mVal); //Serial.print(" x: "); //Serial.print(x);
     if (++bar >= nBars) bar = 0;
     //display.display();
   }
+
 }
 
 void readFromFile()
