@@ -395,15 +395,15 @@ result toggleAudioSpectrum(eventMask e) {
     display.setTextColor(ILI9341_WHITE); // Draw white text
     display.setCursor(0, 0);
     display.print("-80dB.Peak meter.0dB");
-    display.setCursor(0, 16);
-    display.print(" 0");
     display.setCursor(0, 26);
-    display.print("-2");
+    display.print(" 0");
     display.setCursor(0, 36);
-    display.print("-4");
+    display.print("-2");
     display.setCursor(0, 46);
-    display.print("-6");
+    display.print("-4");
     display.setCursor(0, 56);
+    display.print("-6");
+    display.setCursor(0, 66);
     display.print("-8");
     //display.display();
 
@@ -718,7 +718,9 @@ elapsedMillis fps;
 void loop()
 {
   ////Serial.println("Loop");
-  nav.poll();
+  if (spectrumFlag != 1){
+    nav.poll();
+  }
   if (spectrumFlag == 1) {
     ////Serial.println("Loop2");
     displayAudioSpectrum();
@@ -897,10 +899,9 @@ void displayAudioSpectrum() {
   const int nBars = sizeof(fftOctTab) / 2 ;
   const int barWidth = 6;
   const int posX = 128 - nBars * barWidth;
-  const int posY = 64;
+  const int posY = 75;
   const int minHeight = 1;
-  const int maxHeight = 50;
-
+  const int maxHeight = 25;
   static uint16_t bar = 0;
 
   float n;
@@ -910,7 +911,7 @@ void displayAudioSpectrum() {
   int peakM = 0;
   int mVal = 0;
 
-  if (fps > 1) {
+  if (fps > 24) {
   
     fps = 0;
     if (peakPre.available()) {
@@ -935,12 +936,12 @@ void displayAudioSpectrum() {
 
     int x = posX + bar * barWidth;
 
-    display.drawFastVLine(x, 13, 51, ILI9341_BLACK);
-    display.drawFastVLine(x, posY - mVal, posY, ILI9341_WHITE);
+    display.drawFastVLine(x, posY-51, 51, ILI9341_BLACK);
+    display.drawFastVLine(x, posY-mVal, mVal, ILI9341_RED);
     if (++bar >= nBars) bar = 0;
 
   }
-
+  //delay(100);
 }
 
 void readFromFile()
