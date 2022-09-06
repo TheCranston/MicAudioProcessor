@@ -4,21 +4,18 @@
 #include <SD.h>
 #include <SPI.h>
 #include <Audio.h>
-//#include <Wire.h>
 #include <SerialFlash.h>
 #include <Adafruit_GFX.h>
-//#include <Adafruit_SSD1306.h>
-#include <Ucglib.h>
-//#include "SSD1306Ascii.h"
-//#include "SSD1306AsciiWire.h"
+#include <Adafruit_ILI9341.h>  // pjrc's optimized and compatible with adafruit library
+
+
 #include <TimerOne.h>
 #include <ClickEncoder.h>
 #include <menu.h>
-//#include <menuIO/SSD1306AsciiOut.h>
 #include <menuIO/serialIO.h>
 #include <menuIO/clickEncoderIn.h>
 #include <menuIO/chainStream.h>
-#include <menuIO/UCGLibOut.h>
+#include <menuIO/adafruitGfxOut.h>
 
 #include "effect_dynamics.h"
 
@@ -27,19 +24,12 @@ int myPreset = 0;
 const int chipSelect = 10;
 char charRead;
 
-constexpr int OLED_SDC = 5; //5
-constexpr int OLED_SDA = 4; //4
-#define I2C_ADDRESS 0x3C
-
 using namespace Menu;
 
 //Define your font here. Default font: lcd5x7
 //#define menuFont X11fixed7x14
 #define fontW 7
 #define fontH 14
-//#define OPTIMIZE_I2C 1
-
-//SSD1306AsciiWire oled;
 
 // Encoder /////////////////////////////////////
 #define encA 4
@@ -51,12 +41,6 @@ MENU_INPUTS(in, &encStream);
 void timerIsr() {
   clickEncoder.service();
 }
-
-//#include <Audio.h>
-//#include <Wire.h>
-//#include <SPI.h>
-//#include <SD.h>
-//#include <SerialFlash.h>
 
 AudioControlSGTL5000     audioShield;
 AudioInputI2S            audioInput;
@@ -268,31 +252,17 @@ const uint8_t fftOctTab[] = {
 #endif
 
 //define colors
-#define BLACK {0,0,0}
-#define BLUE {0,0,255}
-#define GRAY {128,128,128}
-#define WHITE {255,255,255}
-#define YELLOW {255,255,0}
-#define RED {255,0,0}
-
-const colorDef<rgb> my_colors[6] {
-  {{BLACK,BLACK},{BLACK,BLUE,BLUE}},//bgColor
-  {{GRAY,GRAY},{WHITE,WHITE,WHITE}},//fgColor
-  {{WHITE,BLACK},{YELLOW,YELLOW,RED}},//valColor
-  {{WHITE,BLACK},{WHITE,YELLOW,YELLOW}},//unitColor
-  {{WHITE,GRAY},{BLACK,BLUE,WHITE}},//cursorColor
-  {{WHITE,YELLOW},{BLUE,RED,RED}},//titleColor
+const colorDef<uint16_t> my_colors[6] MEMMODE={
+  {{(uint16_t)ILI9341_BLACK,    (uint16_t)ILI9341_BLACK},     {(uint16_t)ILI9341_BLACK, (uint16_t)ILI9341_BLUE,  (uint16_t)ILI9341_BLUE}},//bgColor
+  {{(uint16_t)ILI9341_DARKGREY, (uint16_t)ILI9341_DARKGREY},  {(uint16_t)ILI9341_WHITE, (uint16_t)ILI9341_WHITE, (uint16_t)ILI9341_WHITE}},//fgColor
+  {{(uint16_t)ILI9341_WHITE,    (uint16_t)ILI9341_BLACK},     {(uint16_t)ILI9341_YELLOW,(uint16_t)ILI9341_YELLOW,(uint16_t)ILI9341_RED}},//valColor
+  {{(uint16_t)ILI9341_WHITE,    (uint16_t)ILI9341_BLACK},     {(uint16_t)ILI9341_WHITE, (uint16_t)ILI9341_YELLOW,(uint16_t)ILI9341_YELLOW}},//unitColor
+  {{(uint16_t)ILI9341_WHITE,    (uint16_t)ILI9341_DARKGREY},  {(uint16_t)ILI9341_BLACK, (uint16_t)ILI9341_BLUE,  (uint16_t)ILI9341_WHITE}},//cursorColor
+  {{(uint16_t)ILI9341_WHITE,    (uint16_t)ILI9341_YELLOW},    {(uint16_t)ILI9341_BLUE,  (uint16_t)ILI9341_RED,   (uint16_t)ILI9341_RED}},//titleColor
 };
 
-
 // Setting the screen driver for the Spectrum Display
-//int SCREEN_WIDTH   = 128; // OLED display width, in pixels
-//int SCREEN_HEIGHT  = 64; // OLED display height, in pixels
-//int OLED_RESET     = -1; // Reset pin # (or -1 if sharing Arduino reset pin)
-//int SCREEN_ADDRESS = 0x3C; ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
-//Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
-Ucglib_ILI9341_18x240x320_HWSPI display(UC_DC, UC_CS, UC_RST);
+Adafruit_ILI9341 display = Adafruit_ILI9341(UC_CS, UC_DC, UC_RST);  // Using standard MOSI=11, SCLK=13, MISO=12  - Specify if using alternate pins
 
 // result doAlert(eventMask e, prompt &item);
 eventMask evt;
@@ -300,11 +270,11 @@ eventMask evt;
 result alert(menuOut& o, idleEvent e) {
   if (e == idling) {
     //Serial.println("idling");
-    display.setPrintPos(0, 0);
+    display.setCursor(0, 0);
     display.print("alert test");
-    display.setPrintPos(0, 10);
+    display.setCursor(0, 10);
     display.print("press [select]");
-    display.setPrintPos(0, 20);
+    display.setCursor(0, 20);
     display.print("to continue...");
   }
   return proceed;
@@ -419,23 +389,21 @@ MENU(subEQ, "Equalizer cfg", showEvent, anyEvent, wrapStyle
 result toggleAudioSpectrum(eventMask e) {
   if (spectrumFlag == 0) {
     spectrumFlag = 1;
-    display.clearScreen();
-    display.setFont(ucg_font_courB08_tr);
+    display.fillScreen(ILI9341_BLACK);
+    //display.setFont(Arial_8);
     //display.setTextSize(1);
-    //display.setTextColor(SSD1306_WHITE); // Draw white text
-    display.setColor(255,255,255);
-    display.setPrintPos(0, 0);
-    //display.cp437(true);
+    display.setTextColor(ILI9341_WHITE); // Draw white text
+    display.setCursor(0, 0);
     display.print("-80dB.Peak meter.0dB");
-    display.setPrintPos(0, 16);
+    display.setCursor(0, 26);
     display.print(" 0");
-    display.setPrintPos(0, 26);
+    display.setCursor(0, 36);
     display.print("-2");
-    display.setPrintPos(0, 36);
+    display.setCursor(0, 46);
     display.print("-4");
-    display.setPrintPos(0, 46);
+    display.setCursor(0, 56);
     display.print("-6");
-    display.setPrintPos(0, 56);
+    display.setCursor(0, 66);
     display.print("-8");
     //display.display();
 
@@ -648,24 +616,10 @@ result showEvent(eventMask e, navNode & nav, prompt & item) {
 idx_t serialTops[MAX_DEPTH] = {0};
 serialOut outSerial(Serial, serialTops);
 
-//describing a menu output device without macros
-//define at least one panel for menu output
-//const panel panels[] MEMMODE = {{0, 0, 128 / fontW, 64 / fontH}};
-//navNode* nodes[sizeof(panels) / sizeof(panel)];                         //navNodes to store navigation status
-//panelsList pList(panels, nodes, 1);                                     //a list of panels and nodes
-//idx_t tops[MAX_DEPTH] = {0, 0};                                         //store cursor positions for each level
-//SSD1306AsciiOut outOLED(&oled, tops, pList, 8, 1 + ((fontH - 1) >> 3) ); //oled output device menu driver
-
-//menuOut* constMEM outputs[] MEMMODE = {&outOLED, &outSerial};           //list of output devices
-//menuOut* constMEM outputs[] MEMMODE = {&outOLED};           //list of output devices
-//menuOut* constMEM outputs[] MEMMODE = {&outSerial};           //list of output devices
-//outputsList out(outputs, sizeof(outputs) / sizeof(menuOut*));           //outputs list
-
 MENU_OUTPUTS(out,MAX_DEPTH
-  ,UCG_OUT(display,my_colors,6,13,0,0,{1,0,UC_Width/6,UC_Height/10})
+  ,ADAGFX_OUT(display,my_colors,6,13,{1,0,UC_Width/6,UC_Height/10})
   ,SERIAL_OUT(Serial)
 );
-
 
 //serialIn serial(Serial);
 
@@ -712,30 +666,16 @@ void setup(void) {
   pinMode(encBtn, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
 
-  //Serial.begin(115200);
-  //Serial.println("");
- 
-  //while (!Serial) {
-  //    // wait for Arduino Serial Monitor to be ready
-  //  }
-  
-  //Serial.println("DSP Pre-Processor booting");
+  display.begin();
+  //display.setFont(Arial_8);
 
-  //Wire.begin();
-  //oled.begin(&Adafruit128x64, I2C_ADDRESS);
-  display.begin(UCG_FONT_MODE_TRANSPARENT);
-  display.setFont(ucg_font_7x13_mf);
-  //display.setFont(ucg_font_courB08_tr);
-  //display.setFont(menuFont);
-
-  display.clearScreen();
-  display.setRotate90();
-  display.setFontPosTop();
-  display.setPrintPos(0, 0);
+  display.fillScreen(ILI9341_BLACK);
+  display.setRotation(1);
+  display.setCursor(0, 0);
   display.print("VA3HDL - Aurora,ON");
-  display.setPrintPos(0, 20);
+  display.setCursor(0, 20);
   display.print("Version 5.0");
-  display.setPrintPos(0, 40);
+  display.setCursor(0, 40);
   Timer1.initialize(500);
   Timer1.attachInterrupt(timerIsr);
  
@@ -749,10 +689,10 @@ void setup(void) {
   {
     //Serial.println("SD card is present");
     display.print("SD card is present");
-    display.setPrintPos(0, 60);
+    display.setCursor(0, 60);
     //Serial.println("Reading settings");
     display.print("Reading settings");
-    display.setPrintPos(0, 80);
+    display.setCursor(0, 80);
     readFromFile();
   }
   else
@@ -763,16 +703,9 @@ void setup(void) {
   }
 
   delay(2000);
-  display.clearScreen();
-  display.setPrintPos(0, 100);
-  //Serial.println("Here");
-  display.setFontPosBottom(); 
-  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  //if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-  //  //Serial.println(F("SSD1306 allocation failed"));
-  //  for (;;); // Don't proceed, loop forever
-  //}
-  display.clearScreen();
+  display.fillScreen(ILI9341_BLACK);
+  display.setCursor(0, 100);
+  display.fillScreen(ILI9341_BLACK);
 
   nav.idleTask = idle; //point a function to be used when menu is suspended
   nav.useUpdateEvent = true;
@@ -785,7 +718,9 @@ elapsedMillis fps;
 void loop()
 {
   ////Serial.println("Loop");
-  nav.poll();
+  if (spectrumFlag != 1){
+    nav.poll();
+  }
   if (spectrumFlag == 1) {
     ////Serial.println("Loop2");
     displayAudioSpectrum();
@@ -793,7 +728,7 @@ void loop()
     if (b == ClickEncoder::Clicked) {
       //Serial.println("Clicked");
       spectrumFlag = 0;
-      display.clearScreen();
+      display.fillScreen(ILI9341_BLACK);
       //display.display();
       nav.refresh();
       //Serial.println();
@@ -964,10 +899,9 @@ void displayAudioSpectrum() {
   const int nBars = sizeof(fftOctTab) / 2 ;
   const int barWidth = 6;
   const int posX = 128 - nBars * barWidth;
-  const int posY = 64;
+  const int posY = 75;
   const int minHeight = 1;
-  const int maxHeight = 50;
-
+  const int maxHeight = 25;
   static uint16_t bar = 0;
 
   float n;
@@ -977,29 +911,21 @@ void displayAudioSpectrum() {
   int peakM = 0;
   int mVal = 0;
 
-  if (fps > 1) {
+  if (fps > 24) {
   
     fps = 0;
     if (peakPre.available()) {
       peak = peakPre.read();
       peakM = map(peak, 0.0, 1.0, 0, 128);
-      display.setColor(0,0,0);
-      //display.drawFastHLine(0, 12, 128, SSD1306_BLACK);
-      display.drawHLine(0,12,128); //csl
+      display.drawFastHLine(0, 12, 128, ILI9341_BLACK);
     }
-    //display.drawFastHLine(0, 12, peakM, SSD1306_WHITE);
-    display.setColor(255,255,255);
-    display.drawHLine(0,12,peakM); //csl
+    display.drawFastHLine(0, 12, peakM, ILI9341_WHITE);
     if (peakPost.available()) {
       peak = peakPost.read();
       peakM = map(peak, 0.0, 1.0, 0, 128);
-      display.setColor(0,0,0);
-      //display.drawFastHLine(0, 15, 128, SSD1306_BLACK);
-      display.drawHLine(0,15,128); //csl
+      display.drawFastHLine(0, 15, 128, ILI9341_BLACK);
     }
-    //display.drawFastHLine(0, 15, peakM, SSD1306_WHITE);
-    display.setColor(255,255,255);
-    display.drawHLine(0,15,peakM); //csl
+    display.drawFastHLine(0, 15, peakM, ILI9341_WHITE);
     
     if (fftValues.available()) {
       n = fftValues.read(fftOctTab[bar * 2], fftOctTab[bar * 2 + 1]);
@@ -1010,18 +936,12 @@ void displayAudioSpectrum() {
 
     int x = posX + bar * barWidth;
 
-    //display.drawFastVLine(x, 13, 51, SSD1306_BLACK);
-    display.setColor(0,0,0);    
-    display.drawVLine(x,13,51); //csl
-    //display.drawFastVLine(x, posY - mVal, posY, SSD1306_WHITE);
-    display.setColor(255,255,255);
-    display.drawVLine(x,posY-mVal,posY); //csl
-    //Serial.println();
-    //Serial.print(" maxVal: "); //Serial.print(maxVal); //Serial.print(" bar: "); //Serial.print(bar); //Serial.print(" val: "); //Serial.print(val); //Serial.print(" mVal: "); //Serial.print(mVal); //Serial.print(" x: "); //Serial.print(x);
+    display.drawFastVLine(x, posY-51, 51, ILI9341_BLACK);
+    display.drawFastVLine(x, posY-mVal, mVal, ILI9341_RED);
     if (++bar >= nBars) bar = 0;
-    //display.display();
-  }
 
+  }
+  //delay(100);
 }
 
 void readFromFile()
@@ -1240,8 +1160,8 @@ void readFromFile()
       }
     }
   }
-  display.clearScreen();
-  display.setPrintPos(0, 0);
+  display.fillScreen(ILI9341_BLACK);
+  display.setCursor(0, 0);
   display.print("Settings read");
   display.print(fileName);
   // Apply settings loaded
@@ -1309,8 +1229,8 @@ void writeToFile()
     //Serial.begin(115200);
     //Serial.print("Writing to "); //Serial.println(fileName);
     //Serial.println("Done");
-    display.clearScreen();
-    display.setPrintPos(0, 0);
+    display.fillScreen(ILI9341_BLACK);
+    display.setCursor(0, 0);
     display.print("Settings saved");
     display.print(fileName);
   }
@@ -1410,7 +1330,7 @@ void resetDefault(void)
   
   SetAudioShield();
   
-  display.clearScreen();
-  display.setPrintPos(0, 0);
+  display.fillScreen(ILI9341_BLACK);
+  display.setCursor(0, 0);
   display.print("Defaults loaded");
 }
