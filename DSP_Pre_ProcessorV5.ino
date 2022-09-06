@@ -911,37 +911,33 @@ void displayAudioSpectrum() {
   int peakM = 0;
   int mVal = 0;
 
-  if (fps > 24) {
+  if (fps > 100) {
   
     fps = 0;
     if (peakPre.available()) {
       peak = peakPre.read();
       peakM = map(peak, 0.0, 1.0, 0, 128);
       display.drawFastHLine(0, 12, 128, ILI9341_BLACK);
+      display.drawFastHLine(0, 12, peakM, ILI9341_WHITE);
     }
-    display.drawFastHLine(0, 12, peakM, ILI9341_WHITE);
     if (peakPost.available()) {
       peak = peakPost.read();
       peakM = map(peak, 0.0, 1.0, 0, 128);
       display.drawFastHLine(0, 15, 128, ILI9341_BLACK);
-    }
-    display.drawFastHLine(0, 15, peakM, ILI9341_WHITE);
-    
+      display.drawFastHLine(0, 15, peakM, ILI9341_WHITE);
+    }    
     if (fftValues.available()) {
-      n = fftValues.read(fftOctTab[bar * 2], fftOctTab[bar * 2 + 1]);
-      val = log10f(n) * 60 + 252;
-      if (val > maxVal) maxVal = val;
-      mVal = map(val, 0, maxVal, minHeight, maxHeight);
+      for (int i=0;i <= nBars; i++) {
+         n = fftValues.read(fftOctTab[i * 2], fftOctTab[i * 2 + 1]);
+         val = log10f(n) * 60 + 252;
+         if (val > maxVal) maxVal = val;
+         mVal = map(val, 0, maxVal, minHeight, maxHeight);        
+         int x = posX + i * barWidth;
+         display.drawFastVLine(x, posY-51, 51, ILI9341_BLACK);
+         display.drawFastVLine(x, posY-mVal, mVal, ILI9341_RED);
+      }
     }
-
-    int x = posX + bar * barWidth;
-
-    display.drawFastVLine(x, posY-51, 51, ILI9341_BLACK);
-    display.drawFastVLine(x, posY-mVal, mVal, ILI9341_RED);
-    if (++bar >= nBars) bar = 0;
-
   }
-  //delay(100);
 }
 
 void readFromFile()
