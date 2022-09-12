@@ -24,6 +24,8 @@ int myPreset = 0;
 const int chipSelect = 10;
 char charRead;
 
+const float DEG2RAD = PI / 180.0f;
+
 using namespace Menu;
 
 //Define your font here. Default font: lcd5x7
@@ -215,6 +217,14 @@ float myAMGheadroom = MYAMGHEADROOM;
 int mupFlag = MUPFLAG;
 float myMUPgain = MYMUPGAIN;
 
+float barPeak[20];
+float xPreNeedleOld;
+float yPreNeedleOld;
+float xPostNeedleOld;
+float yPostNeedleOld;
+float peakPreROld;
+float peakPostROld;
+
 const uint8_t fftOctTab[] = {
   1,  1,
   2,  2,
@@ -393,20 +403,122 @@ result toggleAudioSpectrum(eventMask e) {
     //display.setFont(Arial_8);
     //display.setTextSize(1);
     display.setTextColor(ILI9341_WHITE); // Draw white text
-    display.setCursor(0, 0);
-    display.print("-80dB.Peak meter.0dB");
-    display.setCursor(0, 26);
-    display.print(" 0");
-    display.setCursor(0, 36);
-    display.print("-2");
-    display.setCursor(0, 46);
-    display.print("-4");
-    display.setCursor(0, 56);
-    display.print("-6");
-    display.setCursor(0, 66);
-    display.print("-8");
+    display.setCursor(167, 110);
+    display.print("-80dB.Peek meter.0dB");
+    display.setCursor(15, 125);
+    display.print("  0dB");
+    display.setCursor(15, 150);
+    display.print("-20dB");
+    display.setCursor(15, 176);
+    display.print("-40dB");
+    display.setCursor(15, 200);
+    display.print("-60dB");
+    display.setCursor(15, 225);
+    display.print("-80dB");
     //display.display();
 
+    display.drawRect(50,5,100,60, ILI9341_DARKGREY);
+    display.drawRect((320-150),5,100,60, ILI9341_DARKGREY);
+
+    //draw dots for VU displays...
+    int xPre = 100;
+    int yPre = 60;
+    int xPost = 220;
+    int yPost = 60;
+    int r = 47;
+
+    for (int i=40; i<150; i+=10){
+      
+      float angleR = i * DEG2RAD;
+
+      int xNeedle = -r * (cos(angleR)) + xPre;
+      int yNeedle = -r * (sin(angleR)) + yPre;
+
+      display.drawPixel(xNeedle,yNeedle, ILI9341_WHITE);
+
+      xNeedle = -r * (cos(angleR)) + xPost;
+      yNeedle = -r * (sin(angleR)) + yPost;
+
+      display.drawPixel(xNeedle,yNeedle, ILI9341_WHITE);
+    }
+
+    display.setCursor(127, 55);
+    display.print("Pre");
+    display.setCursor(245, 55);
+    display.print("Post");
+
+    // Input Settings
+
+    display.fillRect(12,5,30,25, ILI9341_WHITE);
+    display.fillRect(12,40,30,25, ILI9341_WHITE);
+
+    if (myInput == AUDIO_INPUT_MIC){
+      display.fillRect(13,6,29,24, ILI9341_RED);
+    }
+    else {
+      display.fillRect(13,41,29,24, ILI9341_RED);
+    }
+
+
+    display.setTextColor(ILI9341_BLACK);
+    display.setCursor(18, 14);
+    display.print("Mic");
+    display.setCursor(16, 48);
+    display.print("Line");
+
+
+   // Output Settings
+
+  for (int i=0; i <=8; i++){
+    display.fillRect(40*i+2, 75, 35, 20,ILI9341_WHITE);
+  }
+
+  // check what's on
+  if (noiseGateFlag ==1){
+    display.fillRect(3, 76, 34, 19, ILI9341_BLUE); 
+  }
+
+  if (procFlag ==1){
+    display.fillRect(43, 76, 34, 19, ILI9341_BLUE); 
+  }
+
+  if (limFlag ==1){
+    display.fillRect(83, 76, 34, 19, ILI9341_BLUE); 
+  }
+
+  if (amgFlag ==1){
+    display.fillRect(123, 76, 34, 19, ILI9341_BLUE); 
+  }
+  
+  if (mupFlag ==1){
+    display.fillRect(163, 76, 34, 19, ILI9341_BLUE); 
+  }
+
+  if (equalizerFlag ==1){
+    display.fillRect(203, 76, 34, 19, ILI9341_BLUE); 
+  }
+
+  if (AVCFlag ==1){
+    display.fillRect(243, 76, 34, 19, ILI9341_BLUE); 
+  }
+
+    
+  display.setTextColor(ILI9341_BLACK);
+  display.setCursor(7, 82);
+  display.print("Gate");
+  display.setCursor(47, 82);
+  display.print("Proc");
+  display.setCursor(88, 82);
+  display.print("Limt");
+  display.setCursor(127, 82);
+  display.print("A MU");
+  display.setCursor(168, 82);
+  display.print("MkUp");
+  display.setCursor(214, 82);
+  display.print("EQ");
+  display.setCursor(248, 82);
+  display.print("AVol");
+    
     //Serial.println();
     //Serial.println("Audio Spectrum ON");
   }
@@ -897,44 +1009,102 @@ void SetupFilters() {
 
 void displayAudioSpectrum() {
   const int nBars = sizeof(fftOctTab) / 2 ;
-  const int barWidth = 6;
-  const int posX = 128 - nBars * barWidth;
-  const int posY = 75;
+  const int barWidth = 12;
+  const int posX = 55;
+  const int posY = 230;
   const int minHeight = 1;
   const int maxHeight = 25;
+  const int barLen = 10;
+  const int barGap = 1;
   static uint16_t bar = 0;
 
   float n;
   int16_t val;
 
+
+  float peakFloat = 1.2;
   float peak;
-  int peakM = 0;
+  int peakPreM = 0;
+  int peakPostM = 0;
   int mVal = 0;
 
-  if (fps > 100) {
-  
+  if (fps > 75) { 
     fps = 0;
+    
     if (peakPre.available()) {
       peak = peakPre.read();
-      peakM = map(peak, 0.0, 1.0, 0, 128);
-      display.drawFastHLine(0, 12, 128, ILI9341_BLACK);
-      display.drawFastHLine(0, 12, peakM, ILI9341_WHITE);
+      peakPreM = map(peak, 0.0, 1.0, 40, 140);
+      //display.drawFastHLine(0, 12, 180, ILI9341_BLACK);
+      //display.drawFastHLine(0, 12, peakM, ILI9341_WHITE);
     }
     if (peakPost.available()) {
       peak = peakPost.read();
-      peakM = map(peak, 0.0, 1.0, 0, 128);
-      display.drawFastHLine(0, 15, 128, ILI9341_BLACK);
-      display.drawFastHLine(0, 15, peakM, ILI9341_WHITE);
+      peakPostM = map(peak, 0.0, 1.0, 40, 140);
+      //display.drawFastHLine(0, 15, 180, ILI9341_BLACK);
+      //display.drawFastHLine(0, 15, peakM, ILI9341_WHITE);
     }    
+
+    //angle is 0-128
+    int xPre = 100;
+    int yPre = 60;
+    int rPre = 45;
+    float needleReaction = .25;
+    float peakPreR = peakPreM * DEG2RAD;
+    peakPreR = ((peakPreR - peakPreROld) * needleReaction)+ peakPreROld;
+    peakPreROld = peakPreR;
+
+    int xPreNeedle = -rPre * (cos(peakPreR)) + xPre;
+    int yPreNeedle = -rPre * (sin(peakPreR)) + yPre;
+
+    display.drawLine(xPre,yPre, xPreNeedleOld,yPreNeedleOld, ILI9341_BLACK);
+    display.drawLine(xPre,yPre, xPreNeedle,yPreNeedle, ILI9341_RED);
+    xPreNeedleOld=xPreNeedle;
+    yPreNeedleOld=yPreNeedle;
+
+    //angle is 0-180
+    int xPost = 220;
+    int yPost = 60;
+    int rPost = 45;
+
+    float peakPostR = peakPostM * DEG2RAD;
+    peakPostR = ((peakPostR - peakPostROld) * needleReaction)+ peakPostROld;
+    peakPostROld = peakPostR;
+
+    int xPostNeedle = -rPost * (cos(peakPostR)) + xPost;
+    int yPostNeedle = -rPost * (sin(peakPostR)) + yPost;
+
+    display.drawLine(xPost,yPost, xPostNeedleOld,yPostNeedleOld, ILI9341_BLACK);
+    display.drawLine(xPost,yPost, xPostNeedle,yPostNeedle, ILI9341_RED);
+    xPostNeedleOld=xPostNeedle;
+    yPostNeedleOld=yPostNeedle;
+    
     if (fftValues.available()) {
-      for (int i=0;i <= nBars; i++) {
+      for (int i=0;i < nBars; i++) {
          n = fftValues.read(fftOctTab[i * 2], fftOctTab[i * 2 + 1]);
          val = log10f(n) * 60 + 252;
          if (val > maxVal) maxVal = val;
          mVal = map(val, 0, maxVal, minHeight, maxHeight);        
          int x = posX + i * barWidth;
-         display.drawFastVLine(x, posY-51, 51, ILI9341_BLACK);
-         display.drawFastVLine(x, posY-mVal, mVal, ILI9341_RED);
+         
+         if (mVal >= barPeak[i]){
+          barPeak[i]=mVal;
+         }
+         else{
+          barPeak[i] = barPeak[i] - peakFloat;
+         }
+         for (int barNum=0; barNum < maxHeight; barNum ++){
+          if (barNum < mVal){
+            display.drawFastHLine(x, posY-(barNum*4), barLen, ILI9341_GREEN);           
+          }
+          else {
+            display.drawFastHLine(x, posY-(barNum*4), barLen, ILI9341_BLACK);
+          }
+
+          if (barNum == round(barPeak[i])){
+            display.drawFastHLine(x, posY-(barNum*4), barLen, ILI9341_WHITE);           
+          }
+
+        }
       }
     }
   }
