@@ -1,12 +1,14 @@
 /* TODO
    Tone generator
 */
+
+#include <EEPROM.h> // store the config here for power persistance
 #include <SD.h>
 #include <SPI.h>
 #include <Audio.h>
 #include <SerialFlash.h>
 #include <Adafruit_GFX.h>
-#include <Adafruit_ILI9341.h>  // pjrc's optimized and compatible with adafruit library
+#include <Adafruit_ILI9341.h>  // goal is to migrate to pjrc's optimized library
 
 
 #include <TimerOne.h>
@@ -158,6 +160,63 @@ AudioConnection          patchCord26(Dynamics, 0, audioOutput, 1);
 #define MUPFLAG 0;
 #define MYMUPGAIN 0.0f;
 
+// EEPROM Magic - if present then we have a config to load
+#define EEPROM_MAGIC 0xFEEDC0DE  // https://en.wikipedia.org/wiki/Hexspeak for the LOLs
+
+struct ConfigSaveSet {
+  float field1;
+  byte field2;
+  char name[10];
+};
+
+----------
+
+
+          AVCgain = atof(inputString);
+          AVCFlag = atoi(inputString);
+          equalizerFlag = atoi(inputString);
+          myLineInLevel = atoi(inputString);
+          myLineOutLevel = atoi(inputString);
+          myVolume = atof(inputString);
+          micGainSet = atof(inputString);
+          myAVCGain = atoi(inputString);
+          myAVCResp = atoi(inputString);
+          myAVCHard = atoi(inputString);
+          myAVCThr = atof(inputString);
+          myAVCAtt = atof(inputString);
+          myAVCDec = atof(inputString);
+          myInput = atoi(inputString);
+          ydBLevel[0] = atof(inputString);
+          ydBLevel[1] = atof(inputString);
+          ydBLevel[2] = atof(inputString);
+          ydBLevel[3] = atof(inputString);
+          ydBLevel[4] = atof(inputString);
+          ydBLevel[5] = atof(inputString);
+          ydBLevel[6] = atof(inputString);
+          ydBLevel[7] = atof(inputString);
+          myNGattackTime = atof(inputString);
+          myNGreleaseTime = atof(inputString);
+          myNGthreshold = atof(inputString);
+          myNGholdTime = atof(inputString);
+          noiseGateFlag = atoi(inputString);
+          myNGhysterisis = atof(inputString);
+          procFlag = atoi(inputString);
+          myPRCthreshold = atof(inputString);
+          myPRCattack = atof(inputString);
+          myPRCrelease = atof(inputString);
+          myPRCratio = atof(inputString);
+          myPRCkneeWidth = atof(inputString);
+          limFlag = atoi(inputString);
+          myLIMthreshold = atof(inputString);
+          myLIMattack = atof(inputString);
+          myLIMrelease = atof(inputString);
+          amgFlag = atoi(inputString);
+          myAMGheadroom = atof(inputString);
+          mupFlag = atoi(inputString);
+          myMUPgain = atof(inputString);
+
+
+---------
 int b;
 int maxVal = 0;
 int spectrumFlag = 0;
