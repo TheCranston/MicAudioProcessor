@@ -161,62 +161,47 @@ AudioConnection          patchCord26(Dynamics, 0, audioOutput, 1);
 #define MYMUPGAIN 0.0f;
 
 // EEPROM Magic - if present then we have a config to load
-#define EEPROM_MAGIC 0xFEEDC0DE  // https://en.wikipedia.org/wiki/Hexspeak for the LOLs
+int EEPROM_MAGIC[3] = {0xFE,0xED,0xC0,0xDE};  // https://en.wikipedia.org/wiki/Hexspeak for the LOLs
+int tempMagic[3];
 
 struct ConfigSaveSet {
-  float field1;
-  byte field2;
-  char name[10];
-};
+   float AVCgain;
+   int AVCFlag;
+   int equalizerFlag;
+   int myLineInLevel;
+   int myLineOutLevel;
+   float myVolume;
+   float micGainSet;
+   int myAVCGain;
+   int myAVCResp;
+   int myAVCHard;
+   float myAVCThr;
+   float myAVCAtt;
+   float myAVCDec;
+   int myInput;
+   float ydBLevel[7];
+   float myNGattackTime;
+   float myNGreleaseTime;
+   float myNGthreshold;
+   float myNGholdTime;
+   int noiseGateFlag;
+   float myNGhysterisis;
+   int procFlag;
+   float myPRCthreshold;
+   float myPRCattack;
+   float myPRCrelease;
+   float myPRCratio;
+   float myPRCkneeWidth;
+   int limFlag;
+   float myLIMthreshold;
+   float myLIMattack;
+   float myLIMrelease;
+   int amgFlag;
+   float myAMGheadroom;
+   int mupFlag;
+   float myMUPgain;
+} MySaveSet;
 
-----------
-
-
-          AVCgain = atof(inputString);
-          AVCFlag = atoi(inputString);
-          equalizerFlag = atoi(inputString);
-          myLineInLevel = atoi(inputString);
-          myLineOutLevel = atoi(inputString);
-          myVolume = atof(inputString);
-          micGainSet = atof(inputString);
-          myAVCGain = atoi(inputString);
-          myAVCResp = atoi(inputString);
-          myAVCHard = atoi(inputString);
-          myAVCThr = atof(inputString);
-          myAVCAtt = atof(inputString);
-          myAVCDec = atof(inputString);
-          myInput = atoi(inputString);
-          ydBLevel[0] = atof(inputString);
-          ydBLevel[1] = atof(inputString);
-          ydBLevel[2] = atof(inputString);
-          ydBLevel[3] = atof(inputString);
-          ydBLevel[4] = atof(inputString);
-          ydBLevel[5] = atof(inputString);
-          ydBLevel[6] = atof(inputString);
-          ydBLevel[7] = atof(inputString);
-          myNGattackTime = atof(inputString);
-          myNGreleaseTime = atof(inputString);
-          myNGthreshold = atof(inputString);
-          myNGholdTime = atof(inputString);
-          noiseGateFlag = atoi(inputString);
-          myNGhysterisis = atof(inputString);
-          procFlag = atoi(inputString);
-          myPRCthreshold = atof(inputString);
-          myPRCattack = atof(inputString);
-          myPRCrelease = atof(inputString);
-          myPRCratio = atof(inputString);
-          myPRCkneeWidth = atof(inputString);
-          limFlag = atoi(inputString);
-          myLIMthreshold = atof(inputString);
-          myLIMattack = atof(inputString);
-          myLIMrelease = atof(inputString);
-          amgFlag = atoi(inputString);
-          myAMGheadroom = atof(inputString);
-          mupFlag = atoi(inputString);
-          myMUPgain = atof(inputString);
-
-
----------
 int b;
 int maxVal = 0;
 int spectrumFlag = 0;
@@ -578,7 +563,7 @@ TOGGLE(limFlag, setLim, "Limiter: ", doNothing, noEvent, wrapStyle
        , VALUE("Off", 0, limOFF, noEvent)
       );
 
-MENU(sdCard, "SD Card", doNothing, noEvent, wrapStyle
+MENU(sdCard, "Save Settings", doNothing, noEvent, wrapStyle
      , FIELD(myPreset, "Select preset", "", 0, 9, 1, , doNothing, noEvent, wrapStyle)
      , OP("Read preset", readFromFile, enterEvent)
      , OP("Save preset",  writeToFile, enterEvent)
@@ -741,25 +726,18 @@ void setup(void) {
   AudioMemory(100);
   audioShield.enable();
 
-  //Serial.println("SD Card active");
-  display.print("SD Card active");
-
-  if (SD.begin(chipSelect))
+  EEPROM.get(0,tempMagic);
+  bool magic_match = true;
+  for ( int i = 0; i < 4; i++ ) 
   {
-    //Serial.println("SD card is present");
-    display.print("SD card is present");
-    display.setCursor(0, 60);
-    //Serial.println("Reading settings");
-    display.print("Reading settings");
-    display.setCursor(0, 80);
-    readFromFile();
+     if ( tempMagic[i] != EEPROM_MAGIC[i] ) 
+     {
+        they_match = false;
+        break;
+     }
   }
-  else
-  {
-    //Serial.println("SD card missing or failure");
-    display.print("SD card missing or failure");
-    //while (1); //wait here forever
-  }
+  if(they_match)
+     readFromFile();
 
   delay(2000);
   display.fillScreen(ILI9341_BLACK);
