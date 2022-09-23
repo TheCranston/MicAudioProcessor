@@ -163,9 +163,9 @@ AudioConnection          patchCord26(Dynamics, 0, audioOutput, 1);
 #define MYMUPGAIN 0.0f;
 
 // EEPROM Magic - if present then we have a config to load
-int EEPROM_MAGIC[3] = {0xFE,0xED,0xC0,0xDE};  // https://en.wikipedia.org/wiki/Hexspeak for the LOLs
-int EEPROM_INIT[3] = {0x00,0x00,0x00,0x00); // invalid config
-int tempMagic[3];
+int EEPROM_MAGIC[4] = {0xFE,0xED,0xC0,0xDE};  // https://en.wikipedia.org/wiki/Hexspeak for the LOLs
+int EEPROM_INIT[4] = {0x00,0x00,0x00,0x00}; // invalid config
+int tempMagic[4] = {0x00,0x00,0x00,0x00};
 
 struct ConfigSaveSet {
    float AVCgain;
@@ -182,7 +182,7 @@ struct ConfigSaveSet {
    float myAVCAtt;
    float myAVCDec;
    int myInput;
-   float ydBLevel[7];
+   float ydBLevel[8];
    float myNGattackTime;
    float myNGreleaseTime;
    float myNGthreshold;
@@ -203,7 +203,7 @@ struct ConfigSaveSet {
    float myAMGheadroom;
    int mupFlag;
    float myMUPgain;
-} MySaveSet;
+} mySaveSet;
 
 int b;
 int maxVal = 0;
@@ -1139,11 +1139,9 @@ void displayAudioSpectrum() {
 
 void readFromFile()
 {
-  byte i = 0;
-  char inputString[100];
-
+  boolean they_match = true;
+  
   EEPROM.get(0,tempMagic);
-  bool magic_match = true;
   for ( int i = 0; i < 4; i++ ) 
   {
      if ( tempMagic[i] != EEPROM_MAGIC[i] ) 
@@ -1153,7 +1151,8 @@ void readFromFile()
      }
   }
   if(they_match) {
-     EEPROM.get(4,mySaveSet);
+     int address = sizeof(EEPROM_MAGIC);
+     EEPROM.get(address,mySaveSet);
      AVCgain = mySaveSet.AVCgain;     
      AVCFlag = mySaveSet.AVCFlag;
      equalizerFlag = mySaveSet.equalizerFlag;
@@ -1254,7 +1253,8 @@ void writeToFile()
    mySaveSet.myMUPgain = myMUPgain;        
 
    EEPROM.put(0,EEPROM_MAGIC);
-   EEPROM.put(4,mySaveSet);
+   int address = sizeof(EEPROM_MAGIC);
+   EEPROM.put(address,mySaveSet);
 
    display.fillScreen(ILI9341_BLACK);
    display.setCursor(0, 0);
