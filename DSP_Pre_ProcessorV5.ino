@@ -162,6 +162,7 @@ AudioConnection          patchCord26(Dynamics, 0, audioOutput, 1);
 
 // EEPROM Magic - if present then we have a config to load
 int EEPROM_MAGIC[3] = {0xFE,0xED,0xC0,0xDE};  // https://en.wikipedia.org/wiki/Hexspeak for the LOLs
+int EEPROM_INIT[3] = {0x00,0x00,0x00,0x00); // invalid config
 int tempMagic[3];
 
 struct ConfigSaveSet {
@@ -725,19 +726,8 @@ void setup(void) {
  
   AudioMemory(100);
   audioShield.enable();
-
-  EEPROM.get(0,tempMagic);
-  bool magic_match = true;
-  for ( int i = 0; i < 4; i++ ) 
-  {
-     if ( tempMagic[i] != EEPROM_MAGIC[i] ) 
-     {
-        they_match = false;
-        break;
-     }
-  }
-  if(they_match)
-     readFromFile();
+   
+  readFromFile();  //  Check for and restore last save state if present
 
   delay(2000);
   display.fillScreen(ILI9341_BLACK);
@@ -981,317 +971,129 @@ void readFromFile()
 {
   byte i = 0;
   char inputString[100];
-  char fileName[13];
-  char filePref[] = "settings";
-  char fileExtn[] = ".txt";
-  sprintf(fileName, "%s%i%s", filePref, myPreset, fileExtn);
-  //Serial.println();
-  //Serial.end();
-  String msgBuffer;
-  // Check to see if the file exists:
-  if (!SD.exists(fileName)) {
-    //Serial.print(fileName);
-    //Serial.println(" doesn't exist.");
-    msgBuffer.concat(fileName);
-    msgBuffer.concat(" doesn't exist.\n");
-  } else {
-    //Serial.print("Reading from: "); //Serial.println(fileName);
-    msgBuffer.concat("Reading from: "); msgBuffer.concat(fileName); msgBuffer.concat("\n");
-    myFile = SD.open(fileName);
-  }
-  int line = 0;
-  while (myFile.available())
+
+  EEPROM.get(0,tempMagic);
+  bool magic_match = true;
+  for ( int i = 0; i < 4; i++ ) 
   {
-    char inputChar = myFile.read(); // Gets one byte from serial buffer
-    if (inputChar == '\n') //end of line (or 10)
-    {
-      inputString[i] = 0;  //terminate the string correctly
-      msgBuffer.concat("Input string: "); msgBuffer.concat(inputString);
-      switch (line) {
-        case 0:
-          AVCgain = atof(inputString);
-          msgBuffer.concat(" Input AVCgain: "); msgBuffer.concat(String(AVCgain)); msgBuffer.concat("\n");
-          break;
-        case 1:
-          AVCFlag = atoi(inputString);
-          msgBuffer.concat(" Input AVCFlag: "); msgBuffer.concat(String(AVCFlag)); msgBuffer.concat("\n");
-          break;
-        case 2:
-          equalizerFlag = atoi(inputString);
-          msgBuffer.concat(" Input equalizerFlag: "); msgBuffer.concat(String(equalizerFlag)); msgBuffer.concat("\n");
-          break;
-        case 3:
-          myLineInLevel = atoi(inputString);
-          msgBuffer.concat(" Input myLineInLevel: "); msgBuffer.concat(String(myLineInLevel)); msgBuffer.concat("\n");
-          break;
-        case 4:
-          myLineOutLevel = atoi(inputString);
-          msgBuffer.concat(" Input myLineOutLevel: "); msgBuffer.concat(String(myLineOutLevel)); msgBuffer.concat("\n");
-          break;
-        case 5:
-          myVolume = atof(inputString);
-          msgBuffer.concat(" Input myVolume: "); msgBuffer.concat(String(myVolume)); msgBuffer.concat("\n");
-          break;
-        case 6:
-          micGainSet = atof(inputString);
-          msgBuffer.concat(" Input micGainSet: "); msgBuffer.concat(String(micGainSet)); msgBuffer.concat("\n");
-          break;
-        case 7:
-          myAVCGain = atoi(inputString);
-          msgBuffer.concat(" Input myAVCGain: "); msgBuffer.concat(String(myAVCGain)); msgBuffer.concat("\n");
-          break;
-        case 8:
-          myAVCResp = atoi(inputString);
-          msgBuffer.concat(" Input myAVCResp: "); msgBuffer.concat(String(myAVCResp)); msgBuffer.concat("\n");
-          break;
-        case 9:
-          myAVCHard = atoi(inputString);
-          msgBuffer.concat(" Input myAVCHard: "); msgBuffer.concat(String(myAVCHard)); msgBuffer.concat("\n");
-          break;
-        case 10:
-          myAVCThr = atof(inputString);
-          msgBuffer.concat(" Input myAVCThr: "); msgBuffer.concat(String(myAVCThr)); msgBuffer.concat("\n");
-          break;
-        case 11:
-          myAVCAtt = atof(inputString);
-          msgBuffer.concat(" Input myAVCAtt: "); msgBuffer.concat(String(myAVCAtt)); msgBuffer.concat("\n");
-          break;
-        case 12:
-          myAVCDec = atof(inputString);
-          msgBuffer.concat(" Input myAVCDec: "); msgBuffer.concat(String(myAVCDec)); msgBuffer.concat("\n");
-          break;
-        case 13:
-          myInput = atoi(inputString);
-          msgBuffer.concat(" Input myInput: "); msgBuffer.concat(String(myInput)); msgBuffer.concat("\n");
-          break;
-        case 14:
-          ydBLevel[0] = atof(inputString);
-          msgBuffer.concat(" Input ydBLevel[0]: "); msgBuffer.concat(String(ydBLevel[0])); msgBuffer.concat("\n");
-          break;
-        case 15:
-          ydBLevel[1] = atof(inputString);
-          msgBuffer.concat(" Input ydBLevel[1]: "); msgBuffer.concat(String(ydBLevel[1])); msgBuffer.concat("\n");
-          break;
-        case 16:
-          ydBLevel[2] = atof(inputString);
-          msgBuffer.concat(" Input ydBLevel[2]: "); msgBuffer.concat(String(ydBLevel[2])); msgBuffer.concat("\n");
-          break;
-        case 17:
-          ydBLevel[3] = atof(inputString);
-          msgBuffer.concat(" Input ydBLevel[3]: "); msgBuffer.concat(String(ydBLevel[3])); msgBuffer.concat("\n");
-          break;
-        case 18:
-          ydBLevel[4] = atof(inputString);
-          msgBuffer.concat(" Input ydBLevel[4]: "); msgBuffer.concat(String(ydBLevel[4])); msgBuffer.concat("\n");
-          break;
-        case 19:
-          ydBLevel[5] = atof(inputString);
-          msgBuffer.concat(" Input ydBLevel[5]: "); msgBuffer.concat(String(ydBLevel[5])); msgBuffer.concat("\n");
-          break;
-        case 20:
-          ydBLevel[6] = atof(inputString);
-          msgBuffer.concat(" Input ydBLevel[6]: "); msgBuffer.concat(String(ydBLevel[6])); msgBuffer.concat("\n");
-          break;
-        case 21:
-          ydBLevel[7] = atof(inputString);
-          msgBuffer.concat(" Input ydBLevel[7]: "); msgBuffer.concat(String(ydBLevel[7])); msgBuffer.concat("\n");
-          break;
-        case 22:
-          myNGattackTime = atof(inputString);
-          msgBuffer.concat(" Input myNGattackTime: "); msgBuffer.concat(String(myNGattackTime, 4)); msgBuffer.concat("\n");
-          break;
-        case 23:
-          myNGreleaseTime = atof(inputString);
-          msgBuffer.concat(" Input myNGreleaseTime: "); msgBuffer.concat(String(myNGreleaseTime, 4)); msgBuffer.concat("\n");
-          break;
-        case 24:
-          myNGthreshold = atof(inputString);
-          msgBuffer.concat(" Input myNGthreshold: "); msgBuffer.concat(String(myNGthreshold)); msgBuffer.concat("\n");
-          break;
-        case 25:
-          myNGholdTime = atof(inputString);
-          msgBuffer.concat(" Input myNGholdTime: "); msgBuffer.concat(String(myNGholdTime, 4)); msgBuffer.concat("\n");
-          break;
-        case 26:
-          noiseGateFlag = atoi(inputString);
-          msgBuffer.concat(" Input noiseGateFlag: "); msgBuffer.concat(String(noiseGateFlag)); msgBuffer.concat("\n");
-          break;
-        case 27:
-          myNGhysterisis = atof(inputString);
-          msgBuffer.concat(" Input myNGhysterisis: "); msgBuffer.concat(String(myNGhysterisis)); msgBuffer.concat("\n");
-          break;
-        case 28:
-          procFlag = atoi(inputString);
-          msgBuffer.concat(" Input procFlag: "); msgBuffer.concat(String(procFlag)); msgBuffer.concat("\n");
-          break;
-        case 29:
-          myPRCthreshold = atof(inputString);
-          msgBuffer.concat(" Input myPRCthreshold: "); msgBuffer.concat(String(myPRCthreshold)); msgBuffer.concat("\n");
-          break;
-        case 30:
-          myPRCattack = atof(inputString);
-          msgBuffer.concat(" Input myPRCattack: "); msgBuffer.concat(String(myPRCattack, 4)); msgBuffer.concat("\n");
-          break;
-        case 31:
-          myPRCrelease = atof(inputString);
-          msgBuffer.concat(" Input myPRCrelease: "); msgBuffer.concat(String(myPRCrelease, 4)); msgBuffer.concat("\n");
-          break;
-        case 32:
-          myPRCratio = atof(inputString);
-          msgBuffer.concat(" Input myPRCratio: "); msgBuffer.concat(String(myPRCratio)); msgBuffer.concat("\n");
-          break;
-        case 33:
-          myPRCkneeWidth = atof(inputString);
-          msgBuffer.concat(" Input myPRCkneeWidth: "); msgBuffer.concat(String(myPRCkneeWidth)); msgBuffer.concat("\n");
-          break;
-        case 34:
-          limFlag = atoi(inputString);
-          msgBuffer.concat(" Input limFlag: "); msgBuffer.concat(String(limFlag)); msgBuffer.concat("\n");
-          break;
-        case 35:
-          myLIMthreshold = atof(inputString);
-          msgBuffer.concat(" Input myLIMthreshold: "); msgBuffer.concat(String(myLIMthreshold)); msgBuffer.concat("\n");
-          break;
-        case 36:
-          myLIMattack = atof(inputString);
-          msgBuffer.concat(" Input myLIMattack: "); msgBuffer.concat(String(myLIMattack, 4)); msgBuffer.concat("\n");
-          break;
-        case 37:
-          myLIMrelease = atof(inputString);
-          msgBuffer.concat(" Input myLIMrelease: "); msgBuffer.concat(String(myLIMrelease, 4)); msgBuffer.concat("\n");
-          break;
-        case 38:
-          amgFlag = atoi(inputString);
-          msgBuffer.concat(" Input amgFlag: "); msgBuffer.concat(String(amgFlag)); msgBuffer.concat("\n");
-          break;
-        case 39:
-          myAMGheadroom = atof(inputString);
-          msgBuffer.concat(" Input myAMGheadroom: "); msgBuffer.concat(String(myAMGheadroom)); msgBuffer.concat("\n");
-          break;
-        case 40:
-          mupFlag = atoi(inputString);
-          msgBuffer.concat(" Input mupFlag: "); msgBuffer.concat(String(mupFlag)); msgBuffer.concat("\n");
-          break;
-        case 41:
-          myMUPgain = atof(inputString);
-          msgBuffer.concat(" Input myMUPgain: "); msgBuffer.concat(String(myMUPgain)); msgBuffer.concat("\n");
-          break;
-      }
-      line++;
-      i = 0;
-    }
-    else
-    {
-      inputString[i] = inputChar; // Store it
-      i++; // Increment where to write next
-      if (i > sizeof(inputString))
-      {
-        msgBuffer.concat("Incoming string longer than array allows");
-        msgBuffer.concat(sizeof(inputString));
-        //Serial.println("msgBuffer");
-        //while (1);
-      }
-    }
+     if ( tempMagic[i] != EEPROM_MAGIC[i] ) 
+     {
+        they_match = false;
+        break;
+     }
   }
-  display.fillScreen(ILI9341_BLACK);
-  display.setCursor(0, 0);
-  display.print("Settings read");
-  display.print(fileName);
-  // Apply settings loaded
-  //Serial.begin(115200);
-  //Serial.println(msgBuffer);
-  //Serial.println("Applying settings loaded to the AudioShield");
+  if(they_match) {
+     EEPROM.get(4,mySaveSet);
+     AVCgain = mySaveSet.AVCgain;     
+     AVCFlag = mySaveSet.AVCFlag;
+     equalizerFlag = mySaveSet.equalizerFlag;
+     myLineInLevel = mySaveSet.myLineInLevel;
+     myLineOutLevel = mySaveSet.myLineOutLevel;
+     myVolume = mySaveSet.myVolume;
+     micGainSet = mySaveSet.micGainSet;
+     myAVCGain = mySaveSet.myAVCGain;
+     myAVCResp = mySaveSet.myAVCResp;
+     myAVCHard = mySaveSet.myAVCHard;
+     myAVCThr = mySaveSet.myAVCThr;
+     myAVCAtt = mySaveSet.myAVCAtt;
+     myAVCDec = mySaveSet.myAVCDec;
+     myInput = mySaveSet.myInput;
+     ydBLevel[0] = mySaveSet.ydBLevel[0];
+     ydBLevel[1] = mySaveSet.ydBLevel[1];
+     ydBLevel[2] = mySaveSet.ydBLevel[2];
+     ydBLevel[3] = mySaveSet.ydBLevel[3];
+     ydBLevel[4] = mySaveSet.ydBLevel[4];
+     ydBLevel[5] = mySaveSet.ydBLevel[5];
+     ydBLevel[6] = mySaveSet.ydBLevel[6];
+     ydBLevel[7] = mySaveSet.ydBLevel[7];     
+     myNGattackTime = mySaveSet.myNGattackTime;
+     myNGreleaseTime = mySaveSet.myNGreleaseTime;
+     myNGthreshold = mySaveSet.myNGthreshold;
+     myNGholdTime = mySaveSet.myNGholdTime;
+     noiseGateFlag = mySaveSet.noiseGateFlag;
+     myNGhysterisis = mySaveSet.myNGhysterisis;
+     procFlag = mySaveSet.procFlag;
+     myPRCthreshold = mySaveSet.myPRCthreshold;
+     myPRCattack = mySaveSet.myPRCattack;
+     myPRCrelease = mySaveSet.myPRCrelease;
+     myPRCratio = mySaveSet.myPRCratio;
+     myPRCkneeWidth = mySaveSet.myPRCkneeWidth;
+     limFlag = mySaveSet.limFlag;
+     myLIMthreshold = mySaveSet.myLIMthreshold;
+     myLIMattack = mySaveSet.myLIMattack;
+     myLIMrelease = mySaveSet.myLIMrelease;
+     amgFlag = mySaveSet.amgFlag;
+     myAMGheadroom = mySaveSet.myAMGheadroom;
+     mupFlag = mySaveSet.mupFlag;
+     myMUPgain = mySaveSet.myMUPgain;        
+
+     display.fillScreen(ILI9341_BLACK);
+     display.setCursor(0, 0);
+     display.print("Settings read");
+  } else {
+     display.fillScreen(ILI9341_BLACK);
+     display.setCursor(0, 0);
+     display.print("No settings found");
+  }
   SetAudioShield();
 }
 
 void writeToFile()
 {
-  //Serial.println();
-  //Serial.end();
-  char fileName[13];
-  char filePref[] = "settings";
-  char fileExtn[] = ".txt";
-  sprintf(fileName, "%s%i%s", filePref, myPreset, fileExtn);
-  deleteFile();
-  myFile = SD.open(fileName, FILE_WRITE);
-  if (myFile) // it opened OK
-  {
-    myFile.println(AVCgain);
-    myFile.println(AVCFlag);
-    myFile.println(equalizerFlag);
-    myFile.println(myLineInLevel);
-    myFile.println(myLineOutLevel);
-    myFile.println(myVolume);
-    myFile.println(micGainSet);
-    myFile.println(myAVCGain);
-    myFile.println(myAVCResp);
-    myFile.println(myAVCHard);
-    myFile.println(myAVCThr);
-    myFile.println(myAVCAtt);
-    myFile.println(myAVCDec);
-    myFile.println(myInput);
-    myFile.println(ydBLevel[0]);
-    myFile.println(ydBLevel[1]);
-    myFile.println(ydBLevel[2]);
-    myFile.println(ydBLevel[3]);
-    myFile.println(ydBLevel[4]);
-    myFile.println(ydBLevel[5]);
-    myFile.println(ydBLevel[6]);
-    myFile.println(ydBLevel[7]);
-    myFile.println(myNGattackTime, 4);
-    myFile.println(myNGreleaseTime, 4);
-    myFile.println(myNGthreshold);
-    myFile.println(myNGholdTime, 4);
-    myFile.println(noiseGateFlag);
-    myFile.println(myNGhysterisis);
-    myFile.println(procFlag);
-    myFile.println(myPRCthreshold);
-    myFile.println(myPRCattack, 4);
-    myFile.println(myPRCrelease, 4);
-    myFile.println(myPRCratio);
-    myFile.println(myPRCkneeWidth);
-    myFile.println(limFlag);
-    myFile.println(myLIMthreshold);
-    myFile.println(myLIMattack, 4);
-    myFile.println(myLIMrelease, 4);
-    myFile.println(amgFlag);
-    myFile.println(myAMGheadroom);
-    myFile.println(mupFlag);
-    myFile.println(myMUPgain);
-    myFile.close();
-    //Serial.begin(115200);
-    //Serial.print("Writing to "); //Serial.println(fileName);
-    //Serial.println("Done");
-    display.fillScreen(ILI9341_BLACK);
-    display.setCursor(0, 0);
-    display.print("Settings saved");
-    display.print(fileName);
-  }
-  else
-  {
-    //Serial.begin(115200);
-    //Serial.println("Error opening file");
-  }
+   mySaveSet.AVCgain = AVCgain;     
+   mySaveSet.AVCFlag = AVCFlag;
+   mySaveSet.equalizerFlag = equalizerFlag;
+   mySaveSet.myLineInLevel = myLineInLevel;
+   mySaveSet.myLineOutLevel = myLineOutLevel;
+   mySaveSet.myVolume = myVolume;
+   mySaveSet.micGainSet = micGainSet;
+   mySaveSet.myAVCGain = myAVCGain;
+   mySaveSet.myAVCResp = myAVCResp;
+   mySaveSet.myAVCHard = myAVCHard;
+   mySaveSet.myAVCThr = myAVCThr;
+   mySaveSet.myAVCAtt = myAVCAtt;
+   mySaveSet.myAVCDec = myAVCDec;
+   mySaveSet.myInput = myInput;
+   mySaveSet.ydBLevel[0] = ydBLevel[0];
+   mySaveSet.ydBLevel[1] = ydBLevel[1];
+   mySaveSet.ydBLevel[2] = ydBLevel[2];
+   mySaveSet.ydBLevel[3] = ydBLevel[3];
+   mySaveSet.ydBLevel[4] = ydBLevel[4];
+   mySaveSet.ydBLevel[5] = ydBLevel[5];
+   mySaveSet.ydBLevel[6] = ydBLevel[6];
+   mySaveSet.ydBLevel[7] = ydBLevel[7];     
+   mySaveSet.myNGattackTime = myNGattackTime;
+   mySaveSet.myNGreleaseTime = myNGreleaseTime;
+   mySaveSet.myNGthreshold = myNGthreshold;
+   mySaveSet.myNGholdTime = myNGholdTime;
+   mySaveSet.noiseGateFlag= noiseGateFlag;
+   mySaveSet.myNGhysterisis = myNGhysterisis;
+   mySaveSet.procFlag = procFlag;
+   mySaveSet.myPRCthreshold = myPRCthreshold;
+   mySaveSet.myPRCattack = myPRCattack;
+   mySaveSet.myPRCrelease = myPRCrelease;
+   mySaveSet.myPRCratio = myPRCratio;
+   mySaveSet.myPRCkneeWidth = myPRCkneeWidth;
+   mySaveSet.limFlag = limFlag;
+   mySaveSet.myLIMthreshold = myLIMthreshold;
+   mySaveSet.myLIMattack = myLIMattack;
+   mySaveSet.myLIMrelease = myLIMrelease;
+   mySaveSet.amgFlag = amgFlag;
+   mySaveSet.myAMGheadroom = myAMGheadroom;
+   mySaveSet.mupFlag = mupFlag;
+   mySaveSet.myMUPgain = myMUPgain;        
+
+   EEPROM.put(0,EEPROM_MAGIC);
+   EEPROM.put(4,mySaveSet);
+
+   display.fillScreen(ILI9341_BLACK);
+   display.setCursor(0, 0);
+   display.print("Settings saved");
 }
 
 void deleteFile()
 {
-  //Serial.println();
-  //Serial.end();
-  char fileName[13];
-  char filePref[] = "settings";
-  char fileExtn[] = ".txt";
-  sprintf(fileName, "%s%i%s", filePref, myPreset, fileExtn);
-  //delete a file:
-  if (SD.exists(fileName))
-  {
-    SD.remove(fileName);
-    //Serial.begin(115200);
-    //Serial.print("Removing "); //Serial.println(fileName);
-  } else {
-    //Serial.begin(115200);
-    //Serial.print(fileName); //Serial.println(" does not exist");
-  }
+   EEPROM.put(0,EEPROM_INIT);
 }
 
 void resetDefault(void)
