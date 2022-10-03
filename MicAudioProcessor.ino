@@ -1373,7 +1373,7 @@ void drawVUmeters() {
 
     for (int i=0; i < maxHeight; i++){
       if (i < peakPreM){
-        im.blit(LITGREENVU, posXin, posYin - i, 1.0);
+        im.blit(LITGREENVU, posXin, posYin - (i*2), 1.0);
       }
     }
   }
@@ -1385,7 +1385,7 @@ void drawVUmeters() {
     
     for (int i=0; i < maxHeight; i++){
       if (i < peakPostM){
-        im.blit(LITGREENVU, posXout, posYout+i, 1.0);
+        im.blit(LITGREENVU, posXout, posYout - (i*2), 1.0);
       }
     }
   }    
