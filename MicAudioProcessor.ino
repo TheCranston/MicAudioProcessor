@@ -5,10 +5,20 @@
 #include <SerialFlash.h>
 // the screen driver library : https://github.com/vindar/ILI9341_T4
 #include <ILI9341_T4.h> 
-
 // the tgx library 
 #include <tgx.h>
-#include<font_tgx_OpenSans.h>
+#include <elapsedMillis.h>
+#include <font_tgx_OpenSans.h>
+#include <Image.h>
+
+// Load sprites
+#include "DSPBKGRND.h"
+#include "LITGREEN.h"
+#include "LITWHITE.h"
+#include "LITGREENVU.h"
+#include "LITWHITEVU.h"
+#include "EQSlider.h"
+
 
 #include "effect_dynamics.h"
 
@@ -21,6 +31,7 @@
 // #include <menuIO/adafruitGfxOut.h>
 
 const float DEG2RAD = PI / 180.0f;
+const float RAD2DEG = 180.0f / PI;
 
 // using namespace Menu;
 // namespace for draw graphics primitives
@@ -36,11 +47,30 @@ using namespace tgx;
 #define encB 4
 #define encBtn 2
 ClickEncoder clickEncoder(encA, encB, encBtn, 2);
+
+#define enc2A  17 //DT
+#define enc2B  16 // CLK
+#define enc2Btn 5
+ClickEncoder clickEncoder2(enc2A, enc2B, enc2Btn, 2);
+
 //ClickEncoderStream encStream(clickEncoder, 1);
 //MENU_INPUTS(in, &encStream);
 
+
+#define BLACK    0x0000
+#define BLUE     0x001F
+#define RED      0xF800
+#define GREEN    0x07E0
+#define CYAN     0x07FF
+#define MAGENTA  0xF81F
+#define YELLOW   0xFFE0 
+#define WHITE    0xFFFF
+
+
+
 void timerIsr() {
   clickEncoder.service();
+  clickEncoder2.service();
 }
 
 AudioControlSGTL5000     audioShield;
@@ -159,6 +189,29 @@ AudioConnection          patchCord26(Dynamics, 0, audioOutput, 1);
 #define MUPFLAG 0;
 #define MYMUPGAIN 0.0f;
 
+// Quick Menu 
+int currentQuickMenuSelection = 0;
+int quickMenuBox[19][4] = { {31,6,24,78},     // EQ 1
+                            {53,6,24,78},     // EQ 2
+                            {75,6,24,78},     // EQ 3
+                            {98,6,24,78},     // EQ 4
+                            {120,6,24,78},    // EQ 5
+                            {142,6,24,78},    // EQ 6
+                            {164,6,24,78},    // EQ 7
+                            {187,6,24,78},    // EQ 8
+                            {212,6,81,78},     // Compressor
+                            {14,94,36,22},     // Line
+                            {50,94,36,22},     // GAte
+                            {87,94,36,22},     // Comp
+                            {124,94,36,22},    // LImit
+                            {161,94,36,22},    // EQ
+                            {198,94,37,22},    // A-Vol
+                            {235,94,37,22},    // A-Mu
+                            {272,94,37,22}     // MkUp
+};
+
+elapsedMillis fps;
+
 // EEPROM Magic - if present then we have a config to load
 int EEPROM_MAGIC[4] = {0xFE,0xED,0xC0,0xDE};  // https://en.wikipedia.org/wiki/Hexspeak for the LOLs
 int EEPROM_INIT[4] = {0x00,0x00,0x00,0x00}; // invalid config
@@ -203,6 +256,7 @@ struct ConfigSaveSet {
 } mySaveSet;
 
 int b;
+int c;
 int maxVal = 0;
 int spectrumFlag = 0;
 
@@ -290,37 +344,42 @@ const uint8_t fftOctTab[] = {
 };
 
 // 40MHz SPI. Can do much better with short wires
-#define SPI_SPEED       40000000
+#define SPI_SPEED       30000000
 
 // screen size in portrait mode
-#define LX  240
-#define LY  320
+#define LX  320
+#define LY  240
 
 // 2 diff buffers with about 8K memory each
-ILI9341_T4::DiffBuffStatic<8000> diff1;
-ILI9341_T4::DiffBuffStatic<8000> diff2;
+DMAMEM ILI9341_T4::DiffBuffStatic<8000> diff1;
+DMAMEM ILI9341_T4::DiffBuffStatic<8000> diff2;
 
 // the internal framebuffer for the ILI9341_T4 driver (150KB) 
 // in DMAMEM to save space in the lower (faster) part of RAM. 
 DMAMEM uint16_t ib[LX * LY];  // used for internal buffering
 DMAMEM uint16_t fb[LX * LY];  // paint in this buffer
+
+// image that encapsulates fb.
+Image<RGB565> im(fb, LX, LY);
+
+
 //
 // DEFAULT WIRING USING SPI 0 ON TEENSY 4/4.1
 //
 #define PIN_SCK     13      // mandatory
 #define PIN_MISO    12      // mandatory
 #define PIN_MOSI    11      // mandatory
-#define PIN_DC      10      // mandatory, can be any pin but using pin 10 (or 36 or 37 on T4.1) provides greater performance
+#define PIN_DC       9      // 10 mandatory, can be any pin but using pin 10 (or 36 or 37 on T4.1) provides greater performance
 
-#define PIN_CS      9       // optional (but recommended), can be any pin.  
-#define PIN_RESET   22       // optional (but recommended), can be any pin. 
-#define PIN_BACKLIGHT 1   // optional, set this only if the screen LED pin is connected directly to the Teensy.
-#define PIN_TOUCH_IRQ 14   // optional. set this only if the touchscreen is connected on the same SPI bus
-#define PIN_TOUCH_CS  6   // optional. set this only if the touchscreen is connected on the same spi bus
+#define PIN_CS      14      //  9 optional (but recommended), can be any pin.  
+#define PIN_RESET   22      // 22 optional (but recommended), can be any pin. 
+#define PIN_BACKLIGHT 255   //  1 optional, set this only if the screen LED pin is connected directly to the Teensy.
+#define PIN_TOUCH_IRQ 255   // 14 optional. set this only if the touchscreen is connected on the same SPI bus
+#define PIN_TOUCH_CS  255   //  6 optional. set this only if the touchscreen is connected on the same spi bus
 
 // Setting the screen driver for the Spectrum Display
 // the screen driver object
-ILI9341_T4::ILI9341Driver display(PIN_CS, PIN_DC, PIN_SCK, PIN_MOSI, PIN_MISO, PIN_RESET, PIN_TOUCH_CS, PIN_TOUCH_IRQ);
+ILI9341_T4::ILI9341Driver display(PIN_CS, PIN_DC, PIN_SCK, PIN_MOSI, PIN_MISO, PIN_RESET); // , PIN_TOUCH_CS, PIN_TOUCH_IRQ);
 
 //drawRect(int xmin, int xmax, int ymin, int ymax, uint16_t color)
 
@@ -822,6 +881,60 @@ void MyDelay(unsigned long ms)
   }
 }
 
+
+/* draw long hand with given angle, scale and opacity */
+void drawBKGRND()
+    {
+    // always use the method with blending, even when opacity = 1.0f because the hand has transparency
+    im.blit(DSPBKGRND, 0, 0, 1.0);
+    } 
+
+void drawQuickMenu(int b, int c)
+  {
+  if (b != 0){
+    fps = 0;  // only reset timer if encoder isn't turning.
+  }
+  currentQuickMenuSelection = currentQuickMenuSelection + b;
+  if (currentQuickMenuSelection > 16) {
+      currentQuickMenuSelection = 0;
+  }
+  if (currentQuickMenuSelection < 0) {
+      currentQuickMenuSelection = 16;
+  }
+
+
+  im.drawRect({quickMenuBox[currentQuickMenuSelection][0], quickMenuBox[currentQuickMenuSelection][1]}, {quickMenuBox[currentQuickMenuSelection][2], quickMenuBox[currentQuickMenuSelection][3]}, RGB565_Red);
+
+
+  // update data from selected box!
+    if (c != 0) {
+      fps = 0; // reset timer - we are working...
+
+    if (currentQuickMenuSelection < 9){
+          ydBLevel[currentQuickMenuSelection] = ydBLevel[currentQuickMenuSelection] + c;
+          if (ydBLevel[currentQuickMenuSelection] > 12) {
+            ydBLevel[currentQuickMenuSelection] = 12;
+          }
+          if (ydBLevel[currentQuickMenuSelection] < -12) {
+            ydBLevel[currentQuickMenuSelection] = -12;
+          }
+      
+    }
+
+    if (currentQuickMenuSelection == 8){
+        myPRCratio = 30.0; // for testing
+        myPRCthreshold = myPRCthreshold + c;  // , -110, 0, 
+      if (myPRCthreshold > 0){
+        myPRCthreshold = 0;
+      }
+      if (myPRCthreshold < -110){
+        myPRCthreshold = -110;
+      }
+      Serial.print(myPRCthreshold);
+    }
+    
+  }
+  }
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 void setup(void) {
@@ -835,11 +948,11 @@ void setup(void) {
     while (!display.begin(SPI_SPEED));
 
     display.setScroll(0);
-    display.setRotation(0);
+    display.setRotation(1);
     display.setFramebuffer(ib);              // set 1 internal framebuffer -> activate float buffering
-    display.setDiffBuffers(&diff1, &diff2);  // set the 2 diff buffers => activate differential updates 
+    //display.setDiffBuffers(&diff1, &diff2);  // set the 2 diff buffers => activate differential updates 
     display.setDiffGap(4);                   // use a small gap for the diff buffers
-    display.setRefreshRate(120);             // around 120hz for the display refresh rate 
+    display.setRefreshRate(140);             // around 120hz for the display refresh rate 
     display.setVSyncSpacing(1);              // set framerate = refreshrate/2 (and enable vsync at the same time) 
 
     // make sure backlight is on
@@ -859,18 +972,39 @@ void setup(void) {
 //  nav.useUpdateEvent = true;
 }
 
-elapsedMillis fps;
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 void loop()
 {
+
+  b= clickEncoder.getValue();
+  c= clickEncoder2.getValue();
+  
+  drawBKGRND();
+  drawFFT();
+  drawVUmeters();
+  drawEQSliders();
+  drawCompressor();
+  display.overlayFPS(fb);
+
+  if (b != 0 or fps < 5000) {
+    drawQuickMenu(b,c);
+  }
+  
+  display.update(fb);
+  yield();
+
+
+
+
+
   ////Serial.println("Loop");
   if (spectrumFlag != 1){
 //    nav.poll();
   }
-  if (spectrumFlag == 1) {
+  if (spectrumFlag == -1) {  // turn this off
     ////Serial.println("Loop2");
-    displayAudioSpectrum();
+
     b = clickEncoder.getButton();
     if (b == ClickEncoder::Clicked) {
       //Serial.println("Clicked");
@@ -1042,76 +1176,113 @@ void SetupFilters() {
   EQ_8.setBandpass(3, eqFreq[7], .9);
 }
 
-void displayAudioSpectrum() {
-  const int nBars = sizeof(fftOctTab) / 2 ;
-  const int barWidth = 12;
-  const int posX = 55;
-  const int posY = 230;
+
+void drawCompressor() {
+  // display is 64 x 75
+  
+  int xThresh = 216; // width = 75
+  int yThresh = 73;
+
+
+
+  // draw threshold line...
+  int x = map(myPRCthreshold, -110, 0, 0, 72);
+  
+  im.drawLine({xThresh+x, yThresh}, {xThresh+x, yThresh-64}, RGB565_Blue); 
+
+  // draw reference line
+  int x1 = xThresh;
+  int y1 = yThresh;
+  int x2 = x1 + x;
+  int y2 = y1 - x * tan(41.634 * DEG2RAD);
+
+  im.drawLine({x1,y1}, {x2,y2}, RGB565_White); 
+
+  //draw the ratio
+  int ratio = map(myPRCratio, 1.0, 60.0, 41, 0);
+  ratio = 20; // hard coding ratio display for tsting
+  
+  x1 = x2;
+  y1 = y2;
+  x2 = xThresh + 72;
+  y2 = y1 - ((x2-x1) * tan(ratio * DEG2RAD));
+   
+  im.drawLine({x1,y1}, {x2,y2}, RGB565_White); 
+  
+}
+
+
+
+void drawVUmeters() {
+  const int posXin = 9;
+  const int posYin = 73;
+  const int posXout = 300;
+  const int posYout = 73;
   const int minHeight = 1;
-  const int maxHeight = 25;
-  const int barLen = 10;
-  const int barGap = 1;
-  static uint16_t bar = 0;
-
-  float n;
-  int16_t val;
-
-
+  const int maxHeight = 17;
   float peakFloat = 1.2;
   float peak;
   int peakPreM = 0;
   int peakPostM = 0;
-  int mVal = 0;
 
-  if (fps > 75) { 
-    fps = 0;
-    
-    if (peakPre.available()) {
-      peak = peakPre.read();
-      peakPreM = map(peak, 0.0, 1.0, 40, 140);
-      //display.drawFastHLine(0, 12, 180, ILI9341_BLACK);
-      //display.drawFastHLine(0, 12, peakM, ILI9341_WHITE);
+
+  if (peakPre.available()) {
+    peak = peakPre.read();
+    peakPreM = map(peak, 0.0, 1.0, minHeight, maxHeight);
+
+    for (int i=0; i < maxHeight; i++){
+      if (i < peakPreM){
+        im.blit(LITGREENVU, posXin, posYin+i, 1.0);
+      }
     }
-    if (peakPost.available()) {
-      peak = peakPost.read();
-      peakPostM = map(peak, 0.0, 1.0, 40, 140);
-      //display.drawFastHLine(0, 15, 180, ILI9341_BLACK);
-      //display.drawFastHLine(0, 15, peakM, ILI9341_WHITE);
-    }    
+  }
 
-    //angle is 0-128
-    int xPre = 100;
-    int yPre = 60;
-    int rPre = 45;
-    float needleReaction = .25;
-    float peakPreR = peakPreM * DEG2RAD;
-    peakPreR = ((peakPreR - peakPreROld) * needleReaction)+ peakPreROld;
-    peakPreROld = peakPreR;
+    
+  if (peakPost.available()) {
+    peak = peakPost.read();
+    peakPostM = map(peak, 0.0, 1.0, 1, 64);
+    
+    for (int i=0; i < maxHeight; i++){
+      if (i < peakPostM){
+        im.blit(LITGREENVU, posXout, posYout+i, 1.0);
+      }
+    }
+  }    
 
-    int xPreNeedle = -rPre * (cos(peakPreR)) + xPre;
-    int yPreNeedle = -rPre * (sin(peakPreR)) + yPre;
 
-//    display.drawLine(xPre,yPre, xPreNeedleOld,yPreNeedleOld, ILI9341_BLACK);
-//    display.drawLine(xPre,yPre, xPreNeedle,yPreNeedle, ILI9341_RED);
-    xPreNeedleOld=xPreNeedle;
-    yPreNeedleOld=yPreNeedle;
+}
 
-    //angle is 0-180
-    int xPost = 220;
-    int yPost = 60;
-    int rPost = 45;
+void drawEQSliders(){
 
-    float peakPostR = peakPostM * DEG2RAD;
-    peakPostR = ((peakPostR - peakPostROld) * needleReaction)+ peakPostROld;
-    peakPostROld = peakPostR;
+  const int xSlider = 44 - 8;
+  const int ySlider = 70;
+  int y;
 
-    int xPostNeedle = -rPost * (cos(peakPostR)) + xPost;
-    int yPostNeedle = -rPost * (sin(peakPostR)) + yPost;
+  for (int i=0; i < 8; i++){
+    y = map(ydBLevel[i], -12, 12, 0, 64); 
+    im.blit(EQSlider, xSlider + (i*22),ySlider - y, 1.0);
+  }
 
-//    display.drawLine(xPost,yPost, xPostNeedleOld,yPostNeedleOld, ILI9341_BLACK);
-//    display.drawLine(xPost,yPost, xPostNeedle,yPostNeedle, ILI9341_RED);
-    xPostNeedleOld=xPostNeedle;
-    yPostNeedleOld=yPostNeedle;
+  
+}
+
+
+void drawFFT() {
+
+  const int nBars = sizeof(fftOctTab) / 2 ;
+  const int barWidth = 15;
+  const int posX = 29;
+  const int posY = 229;
+  const int minHeight = 1;
+  const int maxHeight = 35;
+  int mVal = 0;
+  float n;
+  int16_t val;
+  float peakFloat = 1.2;
+
+    ///////////////////////////////////////////////////////////////////////
+    //  FFT display 
+    //////////////////////////////////////////////////////////////////////
     
     if (fftValues.available()) {
       for (int i=0;i < nBars; i++) {
@@ -1129,20 +1300,18 @@ void displayAudioSpectrum() {
          }
          for (int barNum=0; barNum < maxHeight; barNum ++){
           if (barNum < mVal){
-//            display.drawFastHLine(x, posY-(barNum*4), barLen, ILI9341_GREEN);           
-          }
-          else {
-//            display.drawFastHLine(x, posY-(barNum*4), barLen, ILI9341_BLACK);
+            im.blit(LITGREEN, x, posY-(barNum*3), 1.0);
+         
           }
 
           if (barNum == round(barPeak[i])){
-//            display.drawFastHLine(x, posY-(barNum*4), barLen, ILI9341_WHITE);           
+            im.blit(LITWHITE, x, posY-(barNum*3), 1.0);           
           }
 
         }
       }
     }
-  }
+
 }
 
 void readFromFile()
@@ -1204,9 +1373,6 @@ void readFromFile()
      mupFlag = mySaveSet.mupFlag;
      myMUPgain = mySaveSet.myMUPgain;        
 
-//     display.fillScreen(ILI9341_BLACK);
-//     display.setCursor(0, 0);
-//     display.print("Settings read");
   } else {
 //     display.fillScreen(ILI9341_BLACK);
 //     display.setCursor(0, 0);
