@@ -18,6 +18,14 @@
 #include "LITGREENVU.h"
 #include "LITWHITEVU.h"
 #include "EQSlider.h"
+#include "Mic_On.h"
+#include "Gate_On.h"
+#include "Comp_On.h"
+#include "Limit_On.h"
+#include "EQ_On.h"
+#include "A-VolOn.h"
+#include "A-MuOn.h"
+#include "MkUpOn.h"
 
 
 #include "effect_dynamics.h"
@@ -402,6 +410,7 @@ ILI9341_T4::ILI9341Driver display(PIN_CS, PIN_DC, PIN_SCK, PIN_MOSI, PIN_MISO, P
 
 //Equalizer on
 bool eqON() {
+  equalizerFlag = 1;
   EQ_MixOut.gain(0, 1);
   EQ_MixOut.gain(1, 1);
   EQ_MixOut.gain(2, 0);
@@ -412,6 +421,7 @@ bool eqON() {
 
 //Equalizer off
 bool eqOFF() {
+  equalizerFlag = 0;
   EQ_MixOut.gain(0, 0);
   EQ_MixOut.gain(1, 0);
   EQ_MixOut.gain(2, 1);
@@ -889,8 +899,7 @@ void drawBKGRND()
     im.blit(DSPBKGRND, 0, 0, 1.0);
     } 
 
-void drawQuickMenu(int b, int c)
-  {
+void drawQuickMenu(int b, int c) {
   if (b != 0){
     fps = 0;  // only reset timer if encoder isn't turning.
   }
@@ -932,9 +941,106 @@ void drawQuickMenu(int b, int c)
       }
       Serial.print(myPRCthreshold);
     }
+
+
+    if (currentQuickMenuSelection == 9){
+      myInput = myInput + c;
+      if (myInput > 1){
+        myInput = 0;
+      }
+      if (myInput < 0){
+        myInput = 1;
+      }
+      }
+
+    if (currentQuickMenuSelection == 10){
+      if ( c != 0 ) {
+        if (noiseGateFlag == 1) {
+          ngOFF();
+        } else {
+          ngON();
+        }
+      }
+
+      }
+
+
+    if (currentQuickMenuSelection == 11){
+      if ( c != 0 ) {
+        if (procFlag == 1) {
+          procOFF();
+        } else {
+          procON();
+        }
+      }
+
+      }
+
+
+    if (currentQuickMenuSelection == 12){
+      if ( c != 0 ) {
+        if (limFlag == 1) {
+          limOFF();
+        } else {
+          limON();
+        }
+      }
+
+      }
+
+
+    if (currentQuickMenuSelection == 13){
+      if ( c != 0 ) {
+        if (equalizerFlag == 1) {
+          eqOFF();
+        } else {
+          eqON();
+        }
+      }
+
+      }
+
+      
+    if (currentQuickMenuSelection == 14){
+      if ( c != 0 ) {
+        if (AVCFlag == 1) {
+          AVCoff();
+        } else {
+          AVCon();
+        }
+      }
+
+      }
+
+
+    if (currentQuickMenuSelection == 15){
+      if ( c != 0 ) {
+        if (amgFlag == 1) {
+          amgOFF();
+        } else {
+          amgON();
+        }
+      }
+
+      }
+
+
+    if (currentQuickMenuSelection == 16){
+      if ( c != 0 ) {
+        if (mupFlag == 1) {
+          mupOFF();
+        } else {
+          mupON();
+        }
+      }
+
+      }
+      
+    
+    }
     
   }
-  }
+ 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 void setup(void) {
@@ -985,6 +1091,7 @@ void loop()
   drawVUmeters();
   drawEQSliders();
   drawCompressor();
+  drawButtons();
   display.overlayFPS(fb);
 
   if (b != 0 or fps < 5000) {
@@ -1176,7 +1283,41 @@ void SetupFilters() {
   EQ_8.setBandpass(3, eqFreq[7], .9);
 }
 
+void drawButtons(){
+  if (myInput == AUDIO_INPUT_MIC){
+    im.blit(Mic_On, 16, 96, 1.0);
+  }
+  
+  if (noiseGateFlag ==1){
+    im.blit(Gate_On, 53, 96, 1.0); 
+  }
 
+  if (procFlag ==1){
+    im.blit(Comp_On, 89, 96, 1.0);
+  }
+
+  if (limFlag ==1){
+    im.blit(Limit_On, 126, 96, 1.0);
+  }
+
+  if (equalizerFlag ==1){
+    im.blit(EQ_On, 163, 96, 1.0);
+  }
+  
+  if (AVCFlag ==1){
+    im.blit(AVolOn, 200, 96, 1.0);
+  }
+
+  if (amgFlag ==1){
+    im.blit(AMuOn, 236,96,1.0);
+  }
+
+  if (mupFlag ==1){
+    im.blit(MkUpOn, 274, 96,1.0);
+  }
+}
+
+  
 void drawCompressor() {
   // display is 64 x 75
   
@@ -1232,7 +1373,7 @@ void drawVUmeters() {
 
     for (int i=0; i < maxHeight; i++){
       if (i < peakPreM){
-        im.blit(LITGREENVU, posXin, posYin+i, 1.0);
+        im.blit(LITGREENVU, posXin, posYin - i, 1.0);
       }
     }
   }
