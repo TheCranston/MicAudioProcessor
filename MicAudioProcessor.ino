@@ -1359,7 +1359,7 @@ void drawCompressor() {
 void drawVUmeters() {
   const int posXin = 9;
   const int posYin = 73;
-  const int posXout = 300;
+  const int posXout = 299;
   const int posYout = 73;
   const int minHeight = 1;
   const int maxHeight = 17;
@@ -1375,7 +1375,7 @@ void drawVUmeters() {
 
     for (int i=0; i < maxHeight; i++){
       if (i < peakPreM){
-        im.blit(LITGREENVU, posXin, posYin - (i*2), 1.0);
+        im.blit(LITGREENVU, posXin, posYin - (i*3), 1.0);
       }
     }
   }
@@ -1383,11 +1383,11 @@ void drawVUmeters() {
     
   if (peakPost.available()) {
     peak = peakPost.read();
-    peakPostM = map(peak, 0.0, 1.0, 1, 64);
+    peakPostM = map(peak, 0.0, 1.0, minHeight, maxHeight);
     
     for (int i=0; i < maxHeight; i++){
       if (i < peakPostM){
-        im.blit(LITGREENVU, posXout, posYout - (i*2), 1.0);
+        im.blit(LITGREENVU, posXout, posYout - (i*3), 1.0);
       }
     }
   }    
