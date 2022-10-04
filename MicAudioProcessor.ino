@@ -927,7 +927,9 @@ void drawQuickMenu(int b, int c) {
           if (ydBLevel[currentQuickMenuSelection] < -12) {
             ydBLevel[currentQuickMenuSelection] = -12;
           }
+          if (equalizerFlag == 1){
           EqGainSetL(); 
+          }
     }
 
     if (currentQuickMenuSelection == 8){
@@ -997,6 +999,7 @@ void drawQuickMenu(int b, int c) {
           eqOFF();
         } else {
           eqON();
+          EqGainSetL();
         }
       }
 
