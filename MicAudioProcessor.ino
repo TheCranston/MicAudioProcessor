@@ -377,17 +377,17 @@ Image<RGB565> im(fb, LX, LY);
 #define PIN_SCK     13      // mandatory
 #define PIN_MISO    12      // mandatory
 #define PIN_MOSI    11      // mandatory
-#define PIN_DC       9      // 10 mandatory, can be any pin but using pin 10 (or 36 or 37 on T4.1) provides greater performance
+#define PIN_DC       10      // 10 mandatory, can be any pin but using pin 10 (or 36 or 37 on T4.1) provides greater performance
 
-#define PIN_CS      14      //  9 optional (but recommended), can be any pin.  
+#define PIN_CS      9      //  9 optional (but recommended), can be any pin.  
 #define PIN_RESET   22      // 22 optional (but recommended), can be any pin. 
-#define PIN_BACKLIGHT 255   //  1 optional, set this only if the screen LED pin is connected directly to the Teensy.
-#define PIN_TOUCH_IRQ 255   // 14 optional. set this only if the touchscreen is connected on the same SPI bus
-#define PIN_TOUCH_CS  255   //  6 optional. set this only if the touchscreen is connected on the same spi bus
+#define PIN_BACKLIGHT 1   //  1 optional, set this only if the screen LED pin is connected directly to the Teensy.
+#define PIN_TOUCH_IRQ 14   // 14 optional. set this only if the touchscreen is connected on the same SPI bus
+#define PIN_TOUCH_CS  6   //  6 optional. set this only if the touchscreen is connected on the same spi bus
 
 // Setting the screen driver for the Spectrum Display
 // the screen driver object
-ILI9341_T4::ILI9341Driver display(PIN_CS, PIN_DC, PIN_SCK, PIN_MOSI, PIN_MISO, PIN_RESET); // , PIN_TOUCH_CS, PIN_TOUCH_IRQ);
+ILI9341_T4::ILI9341Driver display(PIN_CS, PIN_DC, PIN_SCK, PIN_MOSI, PIN_MISO, PIN_RESET , PIN_TOUCH_CS, PIN_TOUCH_IRQ);
 
 //drawRect(int xmin, int xmax, int ymin, int ymax, uint16_t color)
 
@@ -1056,7 +1056,7 @@ void setup(void) {
     display.setScroll(0);
     display.setRotation(1);
     display.setFramebuffer(ib);              // set 1 internal framebuffer -> activate float buffering
-    //display.setDiffBuffers(&diff1, &diff2);  // set the 2 diff buffers => activate differential updates 
+    display.setDiffBuffers(&diff1, &diff2);  // set the 2 diff buffers => activate differential updates 
     display.setDiffGap(4);                   // use a small gap for the diff buffers
     display.setRefreshRate(140);             // around 120hz for the display refresh rate 
     display.setVSyncSpacing(1);              // set framerate = refreshrate/2 (and enable vsync at the same time) 
