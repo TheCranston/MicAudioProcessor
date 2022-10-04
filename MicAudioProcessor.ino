@@ -927,7 +927,7 @@ void drawQuickMenu(int b, int c) {
           if (ydBLevel[currentQuickMenuSelection] < -12) {
             ydBLevel[currentQuickMenuSelection] = -12;
           }
-      
+          EqGainSetL(); 
     }
 
     if (currentQuickMenuSelection == 8){
@@ -939,7 +939,8 @@ void drawQuickMenu(int b, int c) {
       if (myPRCthreshold < -110){
         myPRCthreshold = -110;
       }
-      Serial.print(myPRCthreshold);
+      procON();
+      //Serial.print(myPRCthreshold);
     }
 
 
@@ -951,6 +952,7 @@ void drawQuickMenu(int b, int c) {
       if (myInput < 0){
         myInput = 1;
       }
+      SetInput();
       }
 
     if (currentQuickMenuSelection == 10){
