@@ -1,15 +1,20 @@
-#include <EEPROM.h> // store the config here for power persistance
-// #include <SD.h>
-#include <SPI.h>
+#include <OpenAudio_ArduinoLibrary.h>
+#include <AudioStream_F32.h>
+#include <effect_dynamics_F32.h> // Add this: https://github.com/MarkzP/AudioEffectDynamics_F32
+// It will pull in https://github.com/chipaudette/OpenAudio_ArduinoLibrary which you will need to add as well
 #include <Audio.h>
+#include <EEPROM.h> // store the config here for power persistance
+#include <Wire.h>
+#include <SPI.h>
 #include <SerialFlash.h>
+
 // the screen driver library : https://github.com/vindar/ILI9341_T4
 #include <ILI9341_T4.h> 
 // the tgx library 
 #include <tgx.h>
-#include <elapsedMillis.h>
 #include <font_tgx_OpenSans.h>
 #include <Image.h>
+#include <elapsedMillis.h>
 
 // Load sprites
 #include "DSPBKGRND.h"
@@ -27,8 +32,6 @@
 #include "A-MuOn.h"
 #include "MkUpOn.h"
 
-
-#include "effect_dynamics.h"
 
 #include <TimerOne.h>
 #include <ClickEncoder.h>
@@ -82,48 +85,47 @@ void timerIsr() {
 }
 
 AudioControlSGTL5000     audioShield;
-AudioInputI2S            audioInput;
-AudioOutputI2S           audioOutput;
-AudioAnalyzePeak         peakPre;
-AudioAnalyzePeak         peakPost;
-AudioAnalyzeFFT256       fftValues;
-AudioEffectDynamics      Dynamics;
-AudioFilterBiquad        EQ_1;
-AudioFilterBiquad        EQ_2;
-AudioFilterBiquad        EQ_3;
-AudioFilterBiquad        EQ_4;
-AudioFilterBiquad        EQ_5;
-AudioFilterBiquad        EQ_6;
-AudioFilterBiquad        EQ_7;
-AudioFilterBiquad        EQ_8;
-AudioMixer4              EQ_Mix1;
-AudioMixer4              EQ_Mix2;
-AudioMixer4              EQ_MixOut;
-AudioConnection          patchCord1(audioInput, 0, peakPre, 0);
-AudioConnection          patchCord3(audioInput, 0, EQ_MixOut, 2);
-AudioConnection          patchCord4(audioInput, 0, EQ_1, 0);
-AudioConnection          patchCord5(audioInput, 0, EQ_2, 0);
-AudioConnection          patchCord6(audioInput, 0, EQ_3, 0);
-AudioConnection          patchCord7(audioInput, 0, EQ_4, 0);
-AudioConnection          patchCord8(audioInput, 0, EQ_5, 0);
-AudioConnection          patchCord9(audioInput, 0, EQ_6, 0);
-AudioConnection          patchCord10(audioInput, 0, EQ_7, 0);
-AudioConnection          patchCord11(audioInput, 0, EQ_8, 0);
-AudioConnection          patchCord15(EQ_1, 0, EQ_Mix1, 0);
-AudioConnection          patchCord16(EQ_2, 0, EQ_Mix1, 1);
-AudioConnection          patchCord14(EQ_3, 0, EQ_Mix1, 2);
-AudioConnection          patchCord13(EQ_4, 0, EQ_Mix1, 3);
-AudioConnection          patchCord12(EQ_5, 0, EQ_Mix2, 0);
-AudioConnection          patchCord17(EQ_6, 0, EQ_Mix2, 1);
-AudioConnection          patchCord18(EQ_7, 0, EQ_Mix2, 2);
-AudioConnection          patchCord19(EQ_8, 0, EQ_Mix2, 3);
-AudioConnection          patchCord20(EQ_Mix1, 0, EQ_MixOut, 0);
-AudioConnection          patchCord21(EQ_Mix2, 0, EQ_MixOut, 1);
-AudioConnection          patchCord22(EQ_MixOut, 0, Dynamics, 0);
-AudioConnection          patchCord23(Dynamics, fftValues);
-AudioConnection          patchCord24(Dynamics, peakPost);
-AudioConnection          patchCord25(Dynamics, 0, audioOutput, 0);
-AudioConnection          patchCord26(Dynamics, 0, audioOutput, 1);
+AudioInputI2S_F32            audioInput;
+AudioOutputI2S_F32           audioOutput;
+AudioAnalyzePeak_F32         peakPre;
+AudioAnalyzePeak_F32         peakPost;
+AudioAnalyzeFFT1024_F32          fftValues;
+AudioEffectDynamics_F32      Dynamics;
+AudioFilterBiquad_F32        EQ_1;
+AudioFilterBiquad_F32        EQ_2;
+AudioFilterBiquad_F32        EQ_3;
+AudioFilterBiquad_F32        EQ_4;
+AudioFilterBiquad_F32        EQ_5;
+AudioFilterBiquad_F32        EQ_6;
+AudioFilterBiquad_F32        EQ_7;
+AudioFilterBiquad_F32       EQ_8;
+AudioMixer8_F32              EQ_Mix1;
+AudioMixer4_F32              EQ_MixOut;
+AudioConnection_F32          patchCord1(audioInput, 0, peakPre, 0);
+AudioConnection_F32          patchCord3(audioInput, 0, EQ_MixOut, 2);
+AudioConnection_F32          patchCord4(audioInput, 0, EQ_1, 0);
+AudioConnection_F32          patchCord5(audioInput, 0, EQ_2, 0);
+AudioConnection_F32          patchCord6(audioInput, 0, EQ_3, 0);
+AudioConnection_F32          patchCord7(audioInput, 0, EQ_4, 0);
+AudioConnection_F32          patchCord8(audioInput, 0, EQ_5, 0);
+AudioConnection_F32          patchCord9(audioInput, 0, EQ_6, 0);
+AudioConnection_F32          patchCord10(audioInput, 0, EQ_7, 0);
+AudioConnection_F32          patchCord11(audioInput, 0, EQ_8, 0);
+AudioConnection_F32          patchCord15(EQ_1, 0, EQ_Mix1, 0);
+AudioConnection_F32          patchCord16(EQ_2, 0, EQ_Mix1, 1);
+AudioConnection_F32          patchCord14(EQ_3, 0, EQ_Mix1, 2);
+AudioConnection_F32          patchCord13(EQ_4, 0, EQ_Mix1, 3);
+AudioConnection_F32          patchCord12(EQ_5, 0, EQ_Mix1, 0);
+AudioConnection_F32          patchCord17(EQ_6, 0, EQ_Mix1, 1);
+AudioConnection_F32          patchCord18(EQ_7, 0, EQ_Mix1, 2);
+AudioConnection_F32          patchCord19(EQ_8, 0, EQ_Mix1, 3);
+AudioConnection_F32          patchCord20(EQ_Mix1, 0, EQ_MixOut, 0);
+//AudioConnection_F32          patchCord22(EQ_MixOut, 0, Dynamics, 0);
+//AudioConnection_F32          patchCord23(Dynamics, fftValues);
+//AudioConnection_F32          patchCord24(Dynamics, peakPost);
+//AudioConnection_F32          patchCord25(Dynamics, 0, audioOutput, 0);
+//AudioConnection_F32          patchCord26(Dynamics, 0, audioOutput, 1);
+AudioConnection_F32          patchCord27(EQ_MixOut, 0, audioOutput, 0);
 
 //Auto Volume Control (AVC) on
 /* Valid values for dap_avc parameters
@@ -387,7 +389,11 @@ Image<RGB565> im(fb, LX, LY);
 
 // Setting the screen driver for the Spectrum Display
 // the screen driver object
+<<<<<<< Updated upstream
 ILI9341_T4::ILI9341Driver display(PIN_CS, PIN_DC, PIN_SCK, PIN_MOSI, PIN_MISO, PIN_RESET , PIN_TOUCH_CS, PIN_TOUCH_IRQ);
+=======
+ILI9341_T4::ILI9341Driver display(PIN_CS, PIN_DC, PIN_SCK, PIN_MOSI, PIN_MISO, PIN_RESET, PIN_TOUCH_CS, PIN_TOUCH_IRQ);
+>>>>>>> Stashed changes
 
 //drawRect(int xmin, int xmax, int ymin, int ymax, uint16_t color)
 
@@ -1231,10 +1237,10 @@ void EqGainSetL() {
   EQ_Mix1.gain(2, bandGain[2]);     //  370
   EQ_Mix1.gain(3, bandGain[3]);     //  590
 
-  EQ_Mix2.gain(0, bandGain[4]);     //  900
-  EQ_Mix2.gain(1, bandGain[5]);     //  1300
-  EQ_Mix2.gain(2, bandGain[6]);     //  2000
-  EQ_Mix2.gain(3, bandGain[7]);     //  3300
+  EQ_Mix1.gain(4, bandGain[4]);     //  900
+  EQ_Mix1.gain(5, bandGain[5]);     //  1300
+  EQ_Mix1.gain(6, bandGain[6]);     //  2000
+  EQ_Mix1.gain(7, bandGain[7]);     //  3300
 
   EQ_MixOut.gain(0, 1);  // Combine Mixers
   EQ_MixOut.gain(1, 1);
