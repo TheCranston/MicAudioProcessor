@@ -947,6 +947,12 @@ void drawQuickMenu(int b, int c)
     }
 }
 
+// Floating point map function declatration
+double mapf(double x, double in_min, double in_max, double out_min, double out_max)
+{
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 void setup(void)
@@ -989,8 +995,8 @@ void setup(void)
     audioShield.volume(0.5);
 
     eqSwitch.setChannel(1); // testing with EQ off to start
-    // fftValues.windowFunction(AudioWindowBlackmanHarris1024);
-    // fftValues.setNAverage(1);
+    fftValues.windowFunction(AudioWindowBlackmanHarris1024);
+    fftValues.setNAverage(1);
     fftValues.setOutputType(FFT_DBFS);
 
     readFromFile(); //  Check for and restore last save state if present
@@ -1333,20 +1339,19 @@ void drawVUmeters()
     const int posXout = 300;
     const int posYout = 73;
     const int minHeight = 1;
-    const int maxHeight = 17;
+    const int maxHeight = 36;
     float peakFloat = 1.2;
     float peak;
-    int peakPreM = 0;
-    int peakPostM = 0;
+    float peakPreM = 0.0;
+    float peakPostM = 0.0;
 
     if (peakPre.available())
     {
-        peak = peakPre.read();
-        peakPreM = map(peak, 0.0, 1.0, minHeight, maxHeight);
-
+        peak = 20 * log10(peakPre.read()/0.3162);  // Convert to dBm
+        peakPreM = mapf(peak, -68.0, 1.0, 1.0, 36.0);
         for (int i = 0; i < maxHeight; i++)
         {
-            if (i < peakPreM)
+            if (i < int(peakPreM))
             {
                 im.blit(LITGREENVU, posXin, posYin - (i * 2), 1.0);
             }
@@ -1355,12 +1360,11 @@ void drawVUmeters()
 
     if (peakPost.available())
     {
-        peak = peakPost.read();
-        peakPostM = map(peak, 0.0, 1.0, 1, 64);
-
+        peak = 20 * log10(peakPost.read()/0.3162);  // Convert to dBm
+        peakPostM = mapf(peak, -68.0, 1.0, 1.0, 36.0);
         for (int i = 0; i < maxHeight; i++)
         {
-            if (i < peakPostM)
+            if (i < int(peakPostM))
             {
                 im.blit(LITGREENVU, posXout, posYout - (i * 2), 1.0);
             }
@@ -1389,7 +1393,7 @@ void drawFFT()
     const int posX = 29;
     const int posY = 229;
     const int minHeight = 1;
-    const int maxHeight = 35;
+    const int maxHeight = 70;
     int mVal = 0;
     int delta = 0;
     float n;
@@ -1413,7 +1417,7 @@ void drawFFT()
             } else {
               n=n*2; // edge case of first bin..
             }
-            mVal = map(n, -80, 0, minHeight, maxHeight);
+            mVal = (int) mapf(n, -80.0, 0.0, 1.0, 70.0);
             int x = posX + i * barWidth;
 
             if (mVal >= barPeak[i])
