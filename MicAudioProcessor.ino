@@ -87,7 +87,7 @@ AudioEffectDynamics_F32 Dynamics;
 AudioAnalyzePeak_F32 peakPost;    
 AudioAnalyzeFFT1024_F32 fftValues; 
 AudioOutputI2S_F32 audioOutput;   
-AudioConnection_F32 patchCord1(audioInput, 0, inputMixer, 0);
+//AudioConnection_F32 patchCord1(audioInput, 0, inputMixer, 0);
 AudioConnection_F32 patchCord2(audioInUSB1, 0, inputMixer, 1);
 AudioConnection_F32 patchCord3(inputMixer, peakPre);
 AudioConnection_F32 patchCord4(inputMixer, eqSwitch);
@@ -743,6 +743,9 @@ void drawQuickMenu(int b, int c)
             {
                 ydBLevel[currentQuickMenuSelection] = -12;
             }
+            if(equalizerFlag == 1)  {
+              EqGainSetL();
+            }
         }
 
         if (currentQuickMenuSelection == 8)
@@ -1229,14 +1232,15 @@ void drawVUmeters()
     const int minHeight = 1;
     const int maxHeight = 36;
     float peakFloat = 1.2;
-    float peak;
+    float peak, peakVal;
     float peakPreM = 0.0;
     float peakPostM = 0.0;
 
     if (peakPre.available())
     {
-        peak = 20.0f*log10f(fabsf(peakPre.read()));  // Convert to dBm
-        peakPreM = mapf(peak, -68.0, 1.0, 1.0, 36.0);
+        peakVal = peakPre.read();
+        peak = peakVal > 0.0000305176f ? 20.0f*log10f(peakVal) : -90.0;  // Convert to dB and clip lower bounds
+        peakPreM = mapf(peak, -90.0, 3.0, 1.0, 36.0);
         for (int i = 0; i < maxHeight; i++)
         {
             if (i < int(peakPreM))
@@ -1248,8 +1252,9 @@ void drawVUmeters()
 
     if (peakPost.available())
     {
-        peak = 20.0f*log10f(fabsf(peakPost.read()));  // Convert to dBm
-        peakPostM = mapf(peak, -68.0, 1.0, 1.0, 36.0);
+        peakVal = peakPost.read();
+        peak = peakVal > 0.0000305176f ? 20.0f*log10f(peakVal) : -90.0;  // Convert to dB and clip lower bounds
+        peakPostM = mapf(peak, -90.0, 3.0, 1.0, 36.0);
         for (int i = 0; i < maxHeight; i++)
         {
             if (i < int(peakPostM))
