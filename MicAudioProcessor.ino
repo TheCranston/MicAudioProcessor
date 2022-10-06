@@ -87,7 +87,7 @@ AudioEffectDynamics_F32 Dynamics;
 AudioAnalyzePeak_F32 peakPost;    
 AudioAnalyzeFFT1024_F32 fftValues; 
 AudioOutputI2S_F32 audioOutput;   
-//AudioConnection_F32 patchCord1(audioInput, 0, inputMixer, 0);
+AudioConnection_F32 patchCord1(audioInput, 0, inputMixer, 0);
 AudioConnection_F32 patchCord2(audioInUSB1, 0, inputMixer, 1);
 AudioConnection_F32 patchCord3(inputMixer, peakPre);
 AudioConnection_F32 patchCord4(inputMixer, eqSwitch);
@@ -1100,8 +1100,8 @@ void SetAVCParameters()
 void SetLevels()
 {
     // Serial.println();
-    Serial.print(" Headphone: ");     // Serial.print(myVolume); //Serial.print(" Line In Level: "); //Serial.print(myLineInLevel); //Serial.print(" Line Out Level: "); //Serial.print(myLineOutLevel);
-    Serial.print(" myAMGheadroom: "); // Serial.print(myAMGheadroom); //Serial.print(" myMUPgain: "); //Serial.print(myMUPgain);
+    // Serial.print(" Headphone: ");     // Serial.print(myVolume); //Serial.print(" Line In Level: "); //Serial.print(myLineInLevel); //Serial.print(" Line Out Level: "); //Serial.print(myLineOutLevel);
+    // Serial.print(" myAMGheadroom: "); // Serial.print(myAMGheadroom); //Serial.print(" myMUPgain: "); //Serial.print(myMUPgain);
     audioShield.volume(myVolume);
     audioShield.micGain(micGainSet);
     audioShield.lineInLevel(myLineInLevel);
@@ -1125,7 +1125,7 @@ void SetInput()
         audioShield.micGain(0);
     }
     SetAudioShield();
-    Serial.println(); // Serial.print("Input: "); //Serial.print(myInput);
+    // Serial.println(); // Serial.print("Input: "); //Serial.print(myInput);
 }
 
 void EqGainSetL()
@@ -1133,19 +1133,9 @@ void EqGainSetL()
     for (int freqBand = 0; freqBand < 8; freqBand++)
     {
         dbBand[freqBand] = ydBLevel[freqBand];
-        Serial.println();
-        Serial.print("Eq. band: "); Serial.print(freqBand); Serial.print(" dB: "); Serial.print(ydBLevel[freqBand]); Serial.print(" Gain: "); Serial.print(bandGain[freqBand]);
     }
-// punch the filter again...
+    // punch the filter again...
     uint16_t eq = equalize.equalizerNew(8, &fBand[0], &dbBand[0], 30, &equalizeCoeffs[0], 60.0);
-    if (eq == ERR_EQ_BANDS)
-      Serial.println("Equalizer failed: Invalid number of frequency bands.");
-    else if (eq == ERR_EQ_SIDELOBES)
-      Serial.println("Equalizer failed: Invalid sidelobe specification.");
-    else if (eq == ERR_EQ_NFIR)
-      Serial.println("Equalizer failed: Invalid number of FIR coefficients.");
-    else
-      Serial.println("Equalizer initialized successfully.");
 }
 
 void drawButtons()
