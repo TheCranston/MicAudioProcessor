@@ -34,16 +34,10 @@
 
 #include <TimerOne.h>
 #include <ClickEncoder.h>
-// #include <menu.h>
-// #include <menuIO/serialIO.h>
-// #include <menuIO/clickEncoderIn.h>
-// #include <menuIO/chainStream.h>
-// #include <menuIO/adafruitGfxOut.h>
 
 const float DEG2RAD = PI / 180.0f;
 const float RAD2DEG = 180.0f / PI;
 
-// using namespace Menu;
 // namespace for draw graphics primitives
 using namespace tgx;
 
@@ -82,32 +76,29 @@ void timerIsr()
 }
 
 // GUItool: begin automatically generated code
-AudioInputI2S_F32 audioInput;      // xy=77,100
-AudioInputUSB_F32 audioInUSB1;     // xy=82,152
-AudioMixer4_F32 inputMixer;        // xy=235,131
-AudioAnalyzePeak_F32 peakPre;      // xy=417,224
-AudioSwitch4_OA_F32 eqSwitch;      // xy=424,163
-AudioFilterBiquad_F32 biquad1;     // xy=589,94
-AudioFilterBiquad_F32 biquad2;     // xy=592,135
-AudioMixer4_F32 EQ_mix;            // xy=748,162
-AudioEffectDynamics_F32 Dynamics;  // xy=923,163
-AudioAnalyzePeak_F32 peakPost;     // xy=1095,164
-AudioAnalyzeFFT1024_F32 fftValues; // xy=1103,207
-AudioOutputI2S_F32 audioOutput;    // xy=1117,111
+AudioInputI2S_F32 audioInput;      
+AudioInputUSB_F32 audioInUSB1;     
+AudioMixer4_F32 inputMixer;       
+AudioAnalyzePeak_F32 peakPre;      
+AudioSwitch4_OA_F32 eqSwitch;     
+AudioFilterEqualizer_F32 equalize;
+AudioMixer4_F32 EQ_mix;            
+AudioEffectDynamics_F32 Dynamics;  
+AudioAnalyzePeak_F32 peakPost;    
+AudioAnalyzeFFT1024_F32 fftValues; 
+AudioOutputI2S_F32 audioOutput;   
 AudioConnection_F32 patchCord1(audioInput, 0, inputMixer, 0);
 AudioConnection_F32 patchCord2(audioInUSB1, 0, inputMixer, 1);
 AudioConnection_F32 patchCord3(inputMixer, peakPre);
 AudioConnection_F32 patchCord4(inputMixer, eqSwitch);
-AudioConnection_F32 patchCord5(eqSwitch, 0, biquad1, 0);
-AudioConnection_F32 patchCord6(eqSwitch, 0, biquad2, 0);
+AudioConnection_F32 patchCord5(eqSwitch, 0, equalize, 0);
 AudioConnection_F32 patchCord7(eqSwitch, 1, EQ_mix, 2);
-AudioConnection_F32 patchCord8(biquad1, 0, EQ_mix, 0);
-AudioConnection_F32 patchCord9(biquad2, 0, EQ_mix, 1);
+AudioConnection_F32 patchCord8(equalize, 0, EQ_mix, 0);
 AudioConnection_F32 patchCord10(EQ_mix, Dynamics);
 AudioConnection_F32 patchCord11(Dynamics, fftValues);
 AudioConnection_F32 patchCord12(Dynamics, 0, audioOutput, 0);
 AudioConnection_F32 patchCord13(Dynamics, peakPost);
-AudioControlSGTL5000 audioShield; // xy=116,37
+AudioControlSGTL5000 audioShield; 
 // GUItool: end automatically generated code
 
 // Auto Volume Control (AVC) on
@@ -266,7 +257,10 @@ float myAVCAtt = MYAVCATT;
 float myAVCDec = MYAVCDEC;
 
 int freqBand;
-const int eqFreq[] = {150, 240, 370, 590, 900, 1300, 2000, 3300};
+//const int eqFreq[] = {150, 240, 370, 590, 900, 1300, 2000, 3300};
+float32_t fBand[] = {150.0, 240.0, 370.0, 590.0, 900.0, 1300.0, 2000.0, 3300.0};
+float32_t dbBand[] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+float32_t equalizeCoeffs[200];
 
 float bandGain[] = {1, 1, 1, 1, 1, 1, 1, 1};
 float ydBLevel[] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -375,30 +369,11 @@ Image<RGB565> im(fb, LX, LY);
 // the screen driver object
 ILI9341_T4::ILI9341Driver display(PIN_CS, PIN_DC, PIN_SCK, PIN_MOSI, PIN_MISO, PIN_RESET, PIN_TOUCH_CS, PIN_TOUCH_IRQ);
 
-// drawRect(int xmin, int xmax, int ymin, int ymax, uint16_t color)
-
-// result doAlert(eventMask e, prompt &item);
-// eventMask evt;
-
-// result alert(menuOut& o, idleEvent e) {
-//   if (e == idling) {
-//     //Serial.println("idling");
-//     display.setCursor(0, 0);
-//     display.print("alert test");
-//     display.setCursor(0, 10);
-//     display.print("press [select]");
-//     display.setCursor(0, 20);
-//     display.print("to continue...");
-//   }
-//   return proceed;
-// }
-
 // Equalizer on
 bool eqON()
 {
     equalizerFlag = 1;
     eqSwitch.setChannel(0);
-    // Serial.println(""); //Serial.print(e); //Serial.println(" eqON executed, proceed menu"); //Serial.flush();
     return true;
 }
 
@@ -407,7 +382,6 @@ bool eqOFF()
 {
     equalizerFlag = 0;
     eqSwitch.setChannel(1);
-    // Serial.println(""); //Serial.print(e); //Serial.println(" eqOFF executed, proceed menu"); //Serial.flush();
     return true;
 }
 
@@ -717,47 +691,6 @@ bool mupOFF()
 //  return true;
 //}
 
-// Configuration https://github.com/neu-rah/ArduinoMenu/wiki/Menu-definition
-
-#define MAX_DEPTH 2
-
-// define output device
-// idx_t serialTops[MAX_DEPTH] = {0};
-// serialOut outSerial(Serial, serialTops);
-
-// MENU_OUTPUTS(out,MAX_DEPTH
-//   ,ADAGFX_OUT(display,my_colors,6,13,{1,0,UC_Width/6,UC_Height/10})
-//   ,SERIAL_OUT(Serial)
-//);
-
-// serialIn serial(Serial);
-
-// macro to create navigation control root object (nav) using mainMenu
-// NAVROOT(nav, mainMenu, MAX_DEPTH, in, out);
-// NAVROOT(nav, mainMenu, MAX_DEPTH, serial, out);
-
-// result doAlert(eventMask e, prompt & item) {
-//   nav.idleOn(alert);
-//   return proceed;
-// }
-
-// when menu is suspended
-// result idle(menuOut & o, idleEvent e) {
-// display.screenClear();
-// if (&display == &display) {
-//   if (e == idling) {
-//     //Serial.println("OLED");
-//     //Serial.println("Suspended menu");
-//   }
-// } else
-//   switch (e) {
-//     case idleStart: //Serial.println("suspending menu!"); break;
-//     case idling: //Serial.println("suspended..."); break;
-//     case idleEnd: //Serial.println("resuming menu."); break;
-//   }
-//  return proceed;
-//}
-
 void MyDelay(unsigned long ms)
 {
     unsigned long currentMillis = millis();
@@ -987,6 +920,7 @@ void setup(void)
     AudioMemory(100);
     AudioMemory_F32(100);
     audioShield.enable();
+    audioShield.adcHighPassFilterDisable(); // necessary to suppress noise
 
     Serial.println("Audio subsystem up");
     audioShield.unmuteHeadphone();
@@ -999,10 +933,18 @@ void setup(void)
     fftValues.setNAverage(1);
     fftValues.setOutputType(FFT_DBFS);
 
+    uint16_t eq = equalize.equalizerNew(8, &fBand[0], &dbBand[0], 30, &equalizeCoeffs[0], 60.0);
+    if (eq == ERR_EQ_BANDS)
+      Serial.println("Equalizer failed: Invalid number of frequency bands.");
+    else if (eq == ERR_EQ_SIDELOBES)
+      Serial.println("Equalizer failed: Invalid sidelobe specification.");
+    else if (eq == ERR_EQ_NFIR)
+      Serial.println("Equalizer failed: Invalid number of FIR coefficients.");
+    else
+      Serial.println("Equalizer initialized successfully.");
+
     readFromFile(); //  Check for and restore last save state if present
     Serial.println("resotred last config state");
-    //  nav.idleTask = idle; //point a function to be used when menu is suspended
-    //  nav.useUpdateEvent = true;
 /**
     Serial.println("Calculating FFT Bin groups");
     for (int b = 0 ; b < 20 ; b++)
@@ -1088,7 +1030,6 @@ void SetAudioShield()
     else
         eqOFF();
 
-    SetupFilters();     // Setup Equalizer bands
     EqGainSetL();       // Setup Equalizer levels
     SetAVCParameters(); // Setup AVC parameters
 
@@ -1188,73 +1129,20 @@ void EqGainSetL()
 {
     for (int freqBand = 0; freqBand < 8; freqBand++)
     {
-        bandGain[freqBand] = pow(10, (ydBLevel[freqBand] / 20));
-        if (ydBLevel[freqBand] <= -12)
-        {
-            bandGain[freqBand] = 0;
-        }
-        // Serial.println();
-        // Serial.print("Eq. band: "); //Serial.print(freqBand); //Serial.print(" dB: "); //Serial.print(ydBLevel[freqBand]); //Serial.print(" Gain: "); //Serial.print(bandGain[freqBand]);
+        dbBand[freqBand] = ydBLevel[freqBand];
+        Serial.println();
+        Serial.print("Eq. band: "); Serial.print(freqBand); Serial.print(" dB: "); Serial.print(ydBLevel[freqBand]); Serial.print(" Gain: "); Serial.print(bandGain[freqBand]);
     }
-
-    //  EQ_Mix1.gain(0, bandGain[0]);     //  140
-    //  EQ_Mix1.gain(1, bandGain[1]);     //  240
-    //  EQ_Mix1.gain(2, bandGain[2]);     //  370
-    //  EQ_Mix1.gain(3, bandGain[3]);     //  590
-
-    //  EQ_Mix1.gain(4, bandGain[4]);     //  900
-    //  EQ_Mix1.gain(5, bandGain[5]);     //  1300
-    //  EQ_Mix1.gain(6, bandGain[6]);     //  2000
-    //  EQ_Mix1.gain(7, bandGain[7]);     //  3300
-
-    //  EQ_MixOut.gain(0, 1);  // Combine Mixers
-    //  EQ_MixOut.gain(1, 1);
-    //  EQ_MixOut.gain(2, 0);
-}
-
-void SetupFilters()
-{
-    /**
-      EQ_1.setBandpass(0, eqFreq[0], .9);  // Band 1 140Hz, Q =.9
-      EQ_1.setBandpass(1, eqFreq[0], .9);
-      EQ_1.setBandpass(2, eqFreq[0], .9);
-      EQ_1.setBandpass(3, eqFreq[0], .9);
-
-      EQ_2.setBandpass(0, eqFreq[1], .9);  // Band 2 240Hz
-      EQ_2.setBandpass(1, eqFreq[1], .9);
-      EQ_2.setBandpass(2, eqFreq[1], .9);
-      EQ_2.setBandpass(3, eqFreq[1], .9);
-
-      EQ_3.setBandpass(0, eqFreq[2], .9);  // Band 3 370Hz
-      EQ_3.setBandpass(1, eqFreq[2], .9);
-      EQ_3.setBandpass(2, eqFreq[2], .9);
-      EQ_3.setBandpass(3, eqFreq[2], .9);
-
-      EQ_4.setBandpass(0, eqFreq[3], .9);  // Band 4 590Hz
-      EQ_4.setBandpass(1, eqFreq[3], .9);
-      EQ_4.setBandpass(2, eqFreq[3], .9);
-      EQ_4.setBandpass(3, eqFreq[3], .9);
-
-      EQ_5.setBandpass(0, eqFreq[4], .9);  // Band 5 900Hz
-      EQ_5.setBandpass(1, eqFreq[4], .9);
-      EQ_5.setBandpass(2, eqFreq[4], .9);
-      EQ_5.setBandpass(3, eqFreq[4], .9);
-
-      EQ_6.setBandpass(0, eqFreq[5], .9);  // Band 6 1300Hz
-      EQ_6.setBandpass(1, eqFreq[5], .9);
-      EQ_6.setBandpass(2, eqFreq[5], .9);
-      EQ_6.setBandpass(3, eqFreq[5], .9);
-
-      EQ_7.setBandpass(0, eqFreq[6], .9);  // Band 7 2000Hz
-      EQ_7.setBandpass(1, eqFreq[6], .9);
-      EQ_7.setBandpass(2, eqFreq[6], .9);
-      EQ_7.setBandpass(3, eqFreq[6], .9);
-
-      EQ_8.setBandpass(0, eqFreq[7], .9);  // Band 8 3300 Hz
-      EQ_8.setBandpass(1, eqFreq[7], .9);
-      EQ_8.setBandpass(2, eqFreq[7], .9);
-      EQ_8.setBandpass(3, eqFreq[7], .9);
-    **/
+// punch the filter again...
+    uint16_t eq = equalize.equalizerNew(8, &fBand[0], &dbBand[0], 30, &equalizeCoeffs[0], 60.0);
+    if (eq == ERR_EQ_BANDS)
+      Serial.println("Equalizer failed: Invalid number of frequency bands.");
+    else if (eq == ERR_EQ_SIDELOBES)
+      Serial.println("Equalizer failed: Invalid sidelobe specification.");
+    else if (eq == ERR_EQ_NFIR)
+      Serial.println("Equalizer failed: Invalid number of FIR coefficients.");
+    else
+      Serial.println("Equalizer initialized successfully.");
 }
 
 void drawButtons()
@@ -1347,7 +1235,7 @@ void drawVUmeters()
 
     if (peakPre.available())
     {
-        peak = 20 * log10(peakPre.read()/0.3162);  // Convert to dBm
+        peak = 20.0f*log10f(fabsf(peakPre.read()));  // Convert to dBm
         peakPreM = mapf(peak, -68.0, 1.0, 1.0, 36.0);
         for (int i = 0; i < maxHeight; i++)
         {
@@ -1360,7 +1248,7 @@ void drawVUmeters()
 
     if (peakPost.available())
     {
-        peak = 20 * log10(peakPost.read()/0.3162);  // Convert to dBm
+        peak = 20.0f*log10f(fabsf(peakPost.read()));  // Convert to dBm
         peakPostM = mapf(peak, -68.0, 1.0, 1.0, 36.0);
         for (int i = 0; i < maxHeight; i++)
         {
@@ -1640,8 +1528,4 @@ void resetDefault(void)
     myMUPgain = MYMUPGAIN;
 
     SetAudioShield();
-
-    //  display.fillScreen(ILI9341_BLACK);
-    //  display.setCursor(0, 0);
-    //  display.print("Defaults loaded");
 }
