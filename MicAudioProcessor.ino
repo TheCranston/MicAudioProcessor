@@ -317,25 +317,26 @@ float peakPreROld;
 float peakPostROld;
 
 const uint16_t fftOctTab[] = {
-    0, 0,
-    1, 1,
-    1, 2,
-    2, 3,
-    3, 5,
-    5, 7,
-    7, 9,
-    9, 13,
-    13, 19,
-    19, 26,
-    26, 37,
-    37, 51,
-    51, 71,
-    71, 99,
-    99, 137,
-    137, 191,
-    191, 265,
-    265, 368,
-    368, 511};
+1, 1,
+1, 2,
+2, 3,
+3, 4,
+4, 6,
+6, 8,
+8, 12,
+12, 16,
+16, 22,
+22, 30,
+30, 42,
+42, 57,
+57, 78,
+78, 107,
+107, 147,
+147, 200,
+200, 274,
+274, 374,
+374, 511
+}; // Bands calculated from https://forum.pjrc.com/threads/32677-Is-there-a-logarithmic-function-for-FFT-bin-selection-for-any-given-of-bands
 
 // 40MHz SPI. Can do much better with short wires
 #define SPI_SPEED 30000000
@@ -990,12 +991,24 @@ void setup(void)
     eqSwitch.setChannel(1); // testing with EQ off to start
     // fftValues.windowFunction(AudioWindowBlackmanHarris1024);
     // fftValues.setNAverage(1);
-    // fftValues.setOutputType(FFT_DBFS);
+    fftValues.setOutputType(FFT_DBFS);
 
     readFromFile(); //  Check for and restore last save state if present
     Serial.println("resotred last config state");
     //  nav.idleTask = idle; //point a function to be used when menu is suspended
     //  nav.useUpdateEvent = true;
+/**
+    Serial.println("Calculating FFT Bin groups");
+    for (int b = 0 ; b < 20 ; b++)
+    {
+       int from = int (exp (log (512) * b / 20)) ;
+       int to   = int (exp (log (512) * (b+1) / 20)) ;
+       Serial.print(from);
+       Serial.print(", ");
+       Serial.print(to);
+       Serial.println(",");
+    }
+**/
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1378,6 +1391,7 @@ void drawFFT()
     const int minHeight = 1;
     const int maxHeight = 35;
     int mVal = 0;
+    int delta = 0;
     float n;
     int16_t val;
     float peakFloat = 1.2;
@@ -1392,7 +1406,14 @@ void drawFFT()
         for (int i = 0; i < nBars; i++)
         {
             n = fftValues.read(fftOctTab[i * 2], fftOctTab[i * 2 + 1]);
-            mVal = map(n, 0, 30, minHeight, maxHeight);
+            delta= fftOctTab[i * 2 + 1] - fftOctTab[i * 2];
+            if (delta > 0)
+            {
+              n = n / delta;  // divide by number of bins in the sample to make average to graph
+            } else {
+              n=n*2; // edge case of first bin..
+            }
+            mVal = map(n, -80, 0, minHeight, maxHeight);
             int x = posX + i * barWidth;
 
             if (mVal >= barPeak[i])
