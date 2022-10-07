@@ -81,7 +81,7 @@ AudioInputUSB_F32 audioInUSB1;
 AudioMixer4_F32 inputMixer;       
 AudioAnalyzePeak_F32 peakPre;      
 AudioSwitch4_OA_F32 eqSwitch;     
-AudioFilterEqualizer_F32 equalize;
+AudioFilterEqualizer_F32 equalize; //https://forum.pjrc.com/threads/60928-Audio-Equalizer-using-FIR
 AudioMixer4_F32 EQ_mix;            
 AudioEffectDynamics_F32 Dynamics;  
 AudioAnalyzePeak_F32 peakPost;    
@@ -95,9 +95,11 @@ AudioConnection_F32 patchCord5(eqSwitch, 0, equalize, 0);
 AudioConnection_F32 patchCord7(eqSwitch, 1, EQ_mix, 2);
 AudioConnection_F32 patchCord8(equalize, 0, EQ_mix, 0);
 AudioConnection_F32 patchCord10(EQ_mix, Dynamics);
-AudioConnection_F32 patchCord11(Dynamics, fftValues);
+//AudioConnection_F32 patchCord11(Dynamics, fftValues);
+AudioConnection_F32 patchCord14(inputMixer, fftValues);
 AudioConnection_F32 patchCord12(Dynamics, 0, audioOutput, 0);
 AudioConnection_F32 patchCord13(Dynamics, peakPost);
+
 AudioControlSGTL5000 audioShield; 
 // GUItool: end automatically generated code
 
@@ -127,11 +129,11 @@ AudioControlSGTL5000 audioShield;
 #define AVCFLAG 0;
 #define EQUALIZERFLAG 0;
 #define NOISEGATEFLAG 0;
-#define MYINPUT AUDIO_INPUT_MIC;
+#define MYINPUT AUDIO_INPUT_LINEIN;
 
 // DEFAULT AVC LEVELS
 #define AVCGAIN 1.0f;
-#define MYAVCGAIN 1;
+#define MYAVCGAIN 0;
 #define MYAVCRESP 1;
 #define MYAVCHARD 0;
 #define MYAVCTHR -18.0f;
@@ -147,7 +149,7 @@ AudioControlSGTL5000 audioShield;
 // DEFAULT NOISE GATE PARAMETERS
 #define MYNGATTACKTIME 0.01f;
 #define MYNGRELEASETIME 0.2f;
-#define MYNGTHRESHOLD -110.0f;
+#define MYNGTHRESHOLD -65.0f;
 #define MYNGHYSTERISIS 6.0f;
 #define MYNGHOLDTIME 0.0003f;
 
@@ -495,11 +497,11 @@ bool ngON()
 {
     Dynamics.gate(myNGthreshold, myNGattackTime, myNGreleaseTime, myNGhysterisis, 0.0f); // account for F32 gate attenuation
     noiseGateFlag = 1;
-    // Serial.println();
-    // Serial.print(" myNGattackTime: "); //Serial.print(myNGattackTime); //Serial.print(" myNGreleaseTime: "); //Serial.print(myNGreleaseTime); //Serial.print(" myNGthreshold: "); //Serial.print(myNGthreshold);
-    // Serial.print(" myNGholdTime: "); //Serial.print(myNGholdTime, 4); //Serial.print(" myNGhysterisis: "); //Serial.print(myNGhysterisis);
-    // Serial.println();
-    // Serial.println("Noise Gate ON");
+    Serial.println();
+    Serial.print(" myNGattackTime: "); Serial.print(myNGattackTime); Serial.print(" myNGreleaseTime: "); Serial.print(myNGreleaseTime); Serial.print(" myNGthreshold: "); Serial.print(myNGthreshold);
+    Serial.print(" myNGholdTime: "); Serial.print(myNGholdTime, 4); Serial.print(" myNGhysterisis: "); Serial.print(myNGhysterisis);
+    Serial.println();
+    Serial.println("Noise Gate ON");
     return true;
 }
 
@@ -507,8 +509,8 @@ bool ngOFF()
 {
     noiseGateFlag = 0;
     Dynamics.gate(-96.0f, myNGattackTime, myNGreleaseTime, myNGhysterisis, -96.0f); // account for F32 gate attenuation
-    // Serial.println();
-    // Serial.println("Noise Gate OFF");
+    Serial.println();
+    Serial.println("Noise Gate OFF");
     return true;
 }
 
@@ -899,15 +901,14 @@ void setup(void)
     Serial.println("Setup starting...");
 
     // display
-    while (!display.begin(SPI_SPEED))
-        ;
+    while (!display.begin(SPI_SPEED));
 
     display.setScroll(0);
     display.setRotation(1);
     display.setFramebuffer(ib); // set 1 internal framebuffer -> activate float buffering
     display.setDiffBuffers(&diff1, &diff2);  // set the 2 diff buffers => activate differential updates
     display.setDiffGap(4);       // use a small gap for the diff buffers
-    display.setRefreshRate(140); // around 120hz for the display refresh rate
+    display.setRefreshRate(60); // around 120hz for the display refresh rate
     display.setVSyncSpacing(1);  // set framerate = refreshrate/2 (and enable vsync at the same time)
 
     // make sure backlight is on
@@ -916,22 +917,23 @@ void setup(void)
         pinMode(PIN_BACKLIGHT, OUTPUT);
         digitalWrite(PIN_BACKLIGHT, HIGH);
     }
-    Timer1.initialize(500);
-    Timer1.attachInterrupt(timerIsr);
     Serial.println("Display running..");
 
+    Timer1.initialize(500);
+    Timer1.attachInterrupt(timerIsr);
+    Serial.println("Knob encoder isr routines started.");
+    
     AudioMemory(100);
     AudioMemory_F32(100);
     audioShield.enable();
-    audioShield.adcHighPassFilterDisable(); // necessary to suppress noise
-
-    Serial.println("Audio subsystem up");
-    audioShield.unmuteHeadphone();
-    audioShield.lineInLevel(0.5, 0.5);
-    audioShield.lineOutLevel(0.5, 0.5);
+    audioShield.muteHeadphone();
+    audioShield.muteLineout();
+    audioShield.inputSelect(myInput);
+    audioShield.lineInLevel(0, 0);
     audioShield.volume(0.5);
+    audioShield.adcHighPassFilterDisable(); // no need for DCblocking filter. physical filter exists
+    Serial.println("Audio subsystem up");
 
-    eqSwitch.setChannel(1); // testing with EQ off to start
     fftValues.windowFunction(AudioWindowBlackmanHarris1024);
     fftValues.setNAverage(1);
     fftValues.setOutputType(FFT_DBFS);
@@ -948,6 +950,10 @@ void setup(void)
 
     readFromFile(); //  Check for and restore last save state if present
     Serial.println("resotred last config state");
+    audioShield.unmuteHeadphone();
+    audioShield.unmuteLineout();
+    Serial.println("Outputs unmuted");
+
 /**
     Serial.println("Calculating FFT Bin groups");
     for (int b = 0 ; b < 20 ; b++)
@@ -1220,7 +1226,7 @@ void drawVUmeters()
     const int posXout = 300;
     const int posYout = 73;
     const int minHeight = 1;
-    const int maxHeight = 36;
+    const int maxHeight = 33;
     float peakFloat = 1.2;
     float peak, peakVal;
     float peakPreM = 0.0;
@@ -1229,8 +1235,10 @@ void drawVUmeters()
     if (peakPre.available())
     {
         peakVal = peakPre.read();
-        peak = peakVal > 0.0000305176f ? 20.0f*log10f(peakVal) : -90.0;  // Convert to dB and clip lower bounds
-        peakPreM = mapf(peak, -90.0, 3.0, 1.0, 36.0);
+        //peak = peakVal > 0.00065234f ? 20.0f*log10f(peakVal) : -65.0;  // Convert to dB and clip lower bounds just above noise floor
+        peak = peakVal > 0.00065234f ? peakVal : 0.00065234f;
+        peakPreM = mapf(peak, 0.0, 1.0, 1.0, 33.0);
+        // Serial.print(peak, 8); Serial.print(" "); Serial.println(peakPreM);
         for (int i = 0; i < maxHeight; i++)
         {
             if (i < int(peakPreM))
@@ -1243,8 +1251,9 @@ void drawVUmeters()
     if (peakPost.available())
     {
         peakVal = peakPost.read();
-        peak = peakVal > 0.0000305176f ? 20.0f*log10f(peakVal) : -90.0;  // Convert to dB and clip lower bounds
-        peakPostM = mapf(peak, -90.0, 3.0, 1.0, 36.0);
+        //peak = peakVal > 0.00065234f ? 20.0f*log10f(peakVal) : -65.0; // Convert to dB and clip lower bounds just above noise floor
+        peak = peakVal > 0.00065234f ? peakVal : 0.00065234f;
+        peakPostM = mapf(peak, 0, 1.0, 1.0, 33.0);
         for (int i = 0; i < maxHeight; i++)
         {
             if (i < int(peakPostM))
