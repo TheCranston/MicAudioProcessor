@@ -929,7 +929,7 @@ void setup(void)
     display.setScroll(0);
     display.setRotation(1);
     display.setFramebuffer(ib); // set 1 internal framebuffer -> activate float buffering
-    display.setDiffBuffers(&diff1, &diff2);  // set the 2 diff buffers => activate differential updates
+    //display.setDiffBuffers(&diff1, &diff2);  // set the 2 diff buffers => activate differential updates
     display.setDiffGap(4);       // use a small gap for the diff buffers
     display.setRefreshRate(60); // around 120hz for the display refresh rate
     display.setVSyncSpacing(1);  // set framerate = refreshrate/2 (and enable vsync at the same time)
@@ -1332,7 +1332,7 @@ void drawFFT()
             } else {
               n=n*2; // edge case of first bin..
             }
-            mVal = map(int(n), -80, 0, 1, 36);
+            mVal = map( constrain(int(n),-80,0), -80, 0, 0, 36);
             Serial.print(n,2); Serial.print(" "); Serial.println(mVal);
             int x = posX + i * barWidth;
 
