@@ -177,7 +177,8 @@ AudioControlSGTL5000 audioShield;
 
 // Quick Menu
 int currentQuickMenuSelection = 0;
-int quickMenuBox[19][4] = {
+int quickMenuBox[21][4] = {
+    {4,  6, 23, 78},   // IN Gain
     {31, 6, 24, 78},   // EQ 1
     {53, 6, 24, 78},   // EQ 2
     {75, 6, 24, 78},   // EQ 3
@@ -187,6 +188,7 @@ int quickMenuBox[19][4] = {
     {164, 6, 24, 78},  // EQ 7
     {187, 6, 24, 78},  // EQ 8
     {212, 6, 81, 78},  // Compressor
+    {295, 6, 23, 79},  // Out Gain
     {14, 94, 36, 22},  // Line
     {50, 94, 36, 22},  // GAte
     {87, 94, 36, 22},  // Comp
@@ -196,6 +198,8 @@ int quickMenuBox[19][4] = {
     {235, 94, 37, 22}, // A-Mu
     {272, 94, 37, 22}  // MkUp
 };
+
+const int QUICK_MENU_SELECTIONS = 18;
 
 elapsedMillis fps;
 
@@ -741,39 +745,68 @@ void drawQuickMenu(int b, int c)
         fps = 0; // only reset timer if encoder isn't turning.
     }
     currentQuickMenuSelection = currentQuickMenuSelection + b;
-    if (currentQuickMenuSelection > 16)
+    if (currentQuickMenuSelection > QUICK_MENU_SELECTIONS)
     {
         currentQuickMenuSelection = 0;
     }
     if (currentQuickMenuSelection < 0)
     {
-        currentQuickMenuSelection = 16;
+        currentQuickMenuSelection = QUICK_MENU_SELECTIONS;
     }
 
     im.drawRect({quickMenuBox[currentQuickMenuSelection][0], quickMenuBox[currentQuickMenuSelection][1]}, {quickMenuBox[currentQuickMenuSelection][2], quickMenuBox[currentQuickMenuSelection][3]}, RGB565_Red);
+
+    // draw the IN gain graphics here...
+    if (currentQuickMenuSelection == 0){
+      int y;
+      y = map(myLineInLevel, 0, 15, 60, 2);
+      im.fillRect({5, (7 + y)}, {22, 5}, RGB565_Gray);
+      im.fillRect({6, (8 + y)}, {20, 3}, RGB565_Black);
+      im.fillRect({7, (9 + y)}, {18, 1}, RGB565_Cyan);
+    }
+
+    // draw the OUT gain graphics here...
+    if (currentQuickMenuSelection == 10){
+      int y;
+      y = map(myLineOutLevel, 13, 31, 60, 2);
+      im.fillRect({296, (7 + y)}, {22, 5}, RGB565_Gray);
+      im.fillRect({297, (8 + y)}, {20, 3}, RGB565_Black);
+      im.fillRect({298, (9 + y)}, {18, 1}, RGB565_Cyan);
+    }
 
     // update data from selected box!
     if (c != 0)
     {
         fps = 0; // reset timer - we are working...
 
-        if (currentQuickMenuSelection < 9)
-        {
-            ydBLevel[currentQuickMenuSelection] = ydBLevel[currentQuickMenuSelection] + c;
-            if (ydBLevel[currentQuickMenuSelection] > 12)
+      if (currentQuickMenuSelection == 0) {
+        myLineInLevel = myLineInLevel + c;
+        if (myLineInLevel > 15){
+          myLineInLevel = 15;
+        }
+        if (myLineInLevel < 0){
+          myLineInLevel = 0;
+        }
+      }
+        
+
+      if (currentQuickMenuSelection < 10 and currentQuickMenuSelection > 1){
+            ydBLevel[currentQuickMenuSelection-1] = ydBLevel[currentQuickMenuSelection-1] + c;
+            if (ydBLevel[currentQuickMenuSelection-1] > 12)
             {
-                ydBLevel[currentQuickMenuSelection] = 12;
+                ydBLevel[currentQuickMenuSelection-1] = 12;
             }
-            if (ydBLevel[currentQuickMenuSelection] < -12)
+            if (ydBLevel[currentQuickMenuSelection-1] < -12)
             {
-                ydBLevel[currentQuickMenuSelection] = -12;
+                ydBLevel[currentQuickMenuSelection-1] = -12;
             }
             if(equalizerFlag == 1)  {
               EqGainSetL();
             }
         }
 
-        if (currentQuickMenuSelection == 8)
+
+        if (currentQuickMenuSelection == 9)
         {
             myPRCratio = 30.0;                   // for testing
             myPRCthreshold = myPRCthreshold + c; // , -110, 0,
@@ -788,7 +821,18 @@ void drawQuickMenu(int b, int c)
             Serial.print(myPRCthreshold);
         }
 
-        if (currentQuickMenuSelection == 9)
+        if (currentQuickMenuSelection == 10) {
+          myLineOutLevel = myLineOutLevel + c;
+          if (myLineOutLevel > 31){
+            myLineOutLevel = 31;
+          }
+          if (myLineOutLevel < 13){
+            myLineOutLevel = 13;
+          }
+        }
+
+
+        if (currentQuickMenuSelection == 11)
         {
             myInput = myInput + c;
             if (myInput > 1)
@@ -801,7 +845,7 @@ void drawQuickMenu(int b, int c)
             }
         }
 
-        if (currentQuickMenuSelection == 10)
+        if (currentQuickMenuSelection == 12)
         {
             if (c != 0)
             {
@@ -816,7 +860,7 @@ void drawQuickMenu(int b, int c)
             }
         }
 
-        if (currentQuickMenuSelection == 11)
+        if (currentQuickMenuSelection == 13)
         {
             if (c != 0)
             {
@@ -831,7 +875,7 @@ void drawQuickMenu(int b, int c)
             }
         }
 
-        if (currentQuickMenuSelection == 12)
+        if (currentQuickMenuSelection == 14)
         {
             if (c != 0)
             {
@@ -846,7 +890,7 @@ void drawQuickMenu(int b, int c)
             }
         }
 
-        if (currentQuickMenuSelection == 13)
+        if (currentQuickMenuSelection == 15)
         {
             if (c != 0)
             {
@@ -861,7 +905,7 @@ void drawQuickMenu(int b, int c)
             }
         }
 
-        if (currentQuickMenuSelection == 14)
+        if (currentQuickMenuSelection == 16)
         {
             if (c != 0)
             {
@@ -876,7 +920,7 @@ void drawQuickMenu(int b, int c)
             }
         }
 
-        if (currentQuickMenuSelection == 15)
+        if (currentQuickMenuSelection == 17)
         {
             if (c != 0)
             {
@@ -891,7 +935,7 @@ void drawQuickMenu(int b, int c)
             }
         }
 
-        if (currentQuickMenuSelection == 16)
+        if (currentQuickMenuSelection == 18)
         {
             if (c != 0)
             {
@@ -1285,6 +1329,17 @@ void drawVUmeters()
             }
         }
     }
+
+
+    //Draw current gain settings on VU meters
+    // draw the IN gain graphics here...
+    int y;
+    y = map(myLineInLevel, 0, 15, 60, 2);
+    im.drawCircle({15, (9 + y)}, 1, RGB565_Cyan);
+
+    // draw the OUT gain graphics here...
+    y = map(myLineOutLevel, 13, 31, 60, 2);
+    im.drawCircle({305, (9 + y)}, 1, RGB565_Cyan);
 }
 
 void drawEQSliders()
