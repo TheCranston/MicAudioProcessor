@@ -313,6 +313,27 @@ float peakPreROld;
 float peakPostROld;
 
 const uint16_t fftOctTab[] = {
+  1, 1,
+  2, 2,
+  3, 3,
+  4, 5,
+  6, 8,
+  9, 11,
+  12, 15,
+  16, 21,
+  22, 28,
+  29, 37,
+  38, 49,
+  50, 64,
+  65, 84,
+  85, 110,
+  111, 143,
+  144, 185,
+  186, 239,
+  240, 308,
+  309, 397,
+  398, 511 };
+/**  
 1, 1,
 1, 2,
 2, 3,
@@ -332,7 +353,9 @@ const uint16_t fftOctTab[] = {
 200, 274,
 274, 374,
 374, 511
-}; // Bands calculated from https://forum.pjrc.com/threads/32677-Is-there-a-logarithmic-function-for-FFT-bin-selection-for-any-given-of-bands
+}; 
+**/ 
+// Bands calculated from https://forum.pjrc.com/threads/32677-Is-there-a-logarithmic-function-for-FFT-bin-selection-for-any-given-of-bands
 
 // 40MHz SPI. Can do much better with short wires
 #define SPI_SPEED 30000000
@@ -1285,7 +1308,7 @@ void drawFFT()
     const int posX = 29;
     const int posY = 229;
     const int minHeight = 1;
-    const int maxHeight = 70;
+    const int maxHeight = 36;
     int mVal = 0;
     int delta = 0;
     float n;
@@ -1309,7 +1332,8 @@ void drawFFT()
             } else {
               n=n*2; // edge case of first bin..
             }
-            mVal = (int) mapf(n, -80.0, 0.0, 1.0, 70.0);
+            mVal = map(int(n), -80, 0, 1, 36);
+            Serial.print(n,2); Serial.print(" "); Serial.println(mVal);
             int x = posX + i * barWidth;
 
             if (mVal >= barPeak[i])
