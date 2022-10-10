@@ -1333,7 +1333,7 @@ void drawFFT()
               n=n*2; // edge case of first bin..
             }
             mVal = map( constrain(int(n),-80,0), -80, 0, 0, 36);
-            Serial.print(n,2); Serial.print(" "); Serial.println(mVal);
+            //Serial.print(n,2); Serial.print(" "); Serial.println(mVal);
             int x = posX + i * barWidth;
 
             if (mVal >= barPeak[i])
