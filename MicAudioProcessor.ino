@@ -792,7 +792,7 @@ void drawQuickMenu(int b, int c)
       }
         
 
-      if (currentQuickMenuSelection < 10 and currentQuickMenuSelection > 1){
+      if (currentQuickMenuSelection < 10 and currentQuickMenuSelection > 0){
             ydBLevel[currentQuickMenuSelection-1] = ydBLevel[currentQuickMenuSelection-1] + c;
             if (ydBLevel[currentQuickMenuSelection-1] > 12)
             {
