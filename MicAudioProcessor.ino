@@ -787,6 +787,8 @@ void drawQuickMenu(int b, int c)
         if (myLineInLevel < 0){
           myLineInLevel = 0;
         }
+        inputMixer.gain(0,mapf(myLineInLevel,0,15,0.0f, 1.0f));
+        inputMixer.gain(1,mapf(myLineInLevel,0,15,0.0f, 1.0f));
       }
         
 
@@ -829,6 +831,8 @@ void drawQuickMenu(int b, int c)
           if (myLineOutLevel < 13){
             myLineOutLevel = 13;
           }
+        audioOutput.setGain(mapf(myLineOutLevel,13,31,0.0f, 1.0f));
+        audioShield.volume(mapf(myLineOutLevel,13,31,0.0f, 1.0f));
         }
 
 
@@ -990,8 +994,8 @@ void setup(void)
     Timer1.attachInterrupt(timerIsr);
     Serial.println("Knob encoder isr routines started.");
     
-    AudioMemory(100);
-    AudioMemory_F32(100);
+    AudioMemory(20);
+    AudioMemory_F32(20);
     audioShield.enable();
     audioShield.muteHeadphone();
     audioShield.muteLineout();
@@ -1020,6 +1024,12 @@ void setup(void)
     audioShield.unmuteHeadphone();
     audioShield.unmuteLineout();
     Serial.println("Outputs unmuted");
+
+    Serial.print("Audio Memory in use:"); Serial.println(AudioMemoryUsage());
+    Serial.print("CPU: Max Percent Usage: ");
+    Serial.println(AudioProcessorUsageMax());
+    Serial.print("   Max Float 32 Memory: ");
+    Serial.println(AudioMemoryUsageMax_F32());
 
 /**
     Serial.println("Calculating FFT Bin groups");
