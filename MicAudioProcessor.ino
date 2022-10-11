@@ -95,8 +95,8 @@ AudioConnection_F32 patchCord5(eqSwitch, 0, equalize, 0);
 AudioConnection_F32 patchCord7(eqSwitch, 1, EQ_mix, 2);
 AudioConnection_F32 patchCord8(equalize, 0, EQ_mix, 0);
 AudioConnection_F32 patchCord10(EQ_mix, Dynamics);
-//AudioConnection_F32 patchCord11(Dynamics, fftValues);
-AudioConnection_F32 patchCord14(inputMixer, fftValues);
+AudioConnection_F32 patchCord11(Dynamics, fftValues);
+//AudioConnection_F32 patchCord14(inputMixer, fftValues);
 AudioConnection_F32 patchCord12(Dynamics, 0, audioOutput, 0);
 AudioConnection_F32 patchCord13(Dynamics, peakPost);
 
@@ -792,7 +792,7 @@ void drawQuickMenu(int b, int c)
       }
         
 
-      if (currentQuickMenuSelection < 10 and currentQuickMenuSelection > 0){
+      if (currentQuickMenuSelection < 10 and currentQuickMenuSelection > 1){
             ydBLevel[currentQuickMenuSelection-1] = ydBLevel[currentQuickMenuSelection-1] + c;
             if (ydBLevel[currentQuickMenuSelection-1] > 12)
             {
@@ -999,6 +999,8 @@ void setup(void)
     audioShield.enable();
     audioShield.muteHeadphone();
     audioShield.muteLineout();
+    audioShield.dacVolumeRamp(); // smmothly move between volume levels to avoid pops and clocks
+    audioShield.audioProcessorDisable();
     audioShield.inputSelect(myInput);
     audioShield.lineInLevel(0, 0);
     audioShield.volume(0.5);
@@ -1104,13 +1106,13 @@ void SetAudioShield()
     audioShield.lineOutLevel(myLineOutLevel);
 
     audioShield.volume(myVolume);
-    audioShield.adcHighPassFilterEnable();
-    audioShield.dacVolume(1);
-    audioShield.dacVolumeRamp();
+    //audioShield.adcHighPassFilterEnable();
+    //audioShield.dacVolume(1);
+    //audioShield.dacVolumeRamp();
 
-    audioShield.audioPreProcessorEnable();
-    audioShield.audioPostProcessorEnable();
-
+    //audioShield.audioPreProcessorEnable();
+    //audioShield.audioPostProcessorEnable();
+    //audioShield.audioProcessorDisable();
     if (equalizerFlag == 1)
         eqON();
     else
