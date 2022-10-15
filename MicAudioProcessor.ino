@@ -31,6 +31,7 @@
 #include "A-VolOn.h"
 #include "A-MuOn.h"
 #include "MkUpOn.h"
+#include "Mixer.h"
 
 #include <TimerOne.h>
 #include <ClickEncoder.h>
@@ -75,18 +76,26 @@ void timerIsr()
     clickEncoder2.service();
 }
 
-// GUItool: begin automatically generated code
-AudioInputI2S_F32 audioInput;      
-AudioInputUSB_F32 audioInUSB1;     
-AudioMixer4_F32 inputMixer;       
+// Let's get programmatic about our settings and not take the defaults, eh?
+const float sample_rate_Hz = 44100.0f; // overboard for our appliation, but why not?
+const int audio_block_samples = 128;  // max numb of blocks, and the default
+AudioSettings_F32 audio_settings(sample_rate_Hz, audio_block_samples);
+
+AudioControlSGTL5000 audioShield; 
+
+AudioInputI2S_F32 audioInput(audio_settings);      
+AudioInputUSB_F32 audioInUSB1(audio_settings);   
+AudioOutputI2S_F32 audioOutput(audio_settings);  
+
+AudioMixer4_F32 inputMixer(audio_settings);       
 AudioAnalyzePeak_F32 peakPre;      
 AudioSwitch4_OA_F32 eqSwitch;     
-AudioFilterEqualizer_F32 equalize; //https://forum.pjrc.com/threads/60928-Audio-Equalizer-using-FIR
-AudioMixer4_F32 EQ_mix;            
-AudioEffectDynamics_F32 Dynamics;  
+AudioFilterEqualizer_F32 equalize(audio_settings); //https://forum.pjrc.com/threads/60928-Audio-Equalizer-using-FIR
+AudioMixer4_F32 EQ_mix(audio_settings);            
+AudioEffectDynamics_F32 Dynamics(audio_settings, AudioEffectDynamics_F32::DetectorType_RMS);  //Switch from Peak detect to RMS  
 AudioAnalyzePeak_F32 peakPost;    
 AudioAnalyzeFFT1024_F32 fftValues; 
-AudioOutputI2S_F32 audioOutput;   
+ 
 AudioConnection_F32 patchCord1(audioInput, 0, inputMixer, 0);
 AudioConnection_F32 patchCord2(audioInUSB1, 0, inputMixer, 1);
 AudioConnection_F32 patchCord3(inputMixer, peakPre);
@@ -95,13 +104,9 @@ AudioConnection_F32 patchCord5(eqSwitch, 0, equalize, 0);
 AudioConnection_F32 patchCord7(eqSwitch, 1, EQ_mix, 2);
 AudioConnection_F32 patchCord8(equalize, 0, EQ_mix, 0);
 AudioConnection_F32 patchCord10(EQ_mix, Dynamics);
-//AudioConnection_F32 patchCord11(Dynamics, fftValues);
-AudioConnection_F32 patchCord14(inputMixer, fftValues);
+AudioConnection_F32 patchCord11(Dynamics, fftValues);
 AudioConnection_F32 patchCord12(Dynamics, 0, audioOutput, 0);
 AudioConnection_F32 patchCord13(Dynamics, peakPost);
-
-AudioControlSGTL5000 audioShield; 
-// GUItool: end automatically generated code
 
 // Auto Volume Control (AVC) on
 /* Valid values for dap_avc parameters
@@ -177,7 +182,9 @@ AudioControlSGTL5000 audioShield;
 
 // Quick Menu
 int currentQuickMenuSelection = 0;
-int quickMenuBox[19][4] = {
+int currentQuickMenuLevel = 0;
+int quickMenuBox[21][4] = {
+    {4,  6, 23, 78},   // IN Gain
     {31, 6, 24, 78},   // EQ 1
     {53, 6, 24, 78},   // EQ 2
     {75, 6, 24, 78},   // EQ 3
@@ -187,6 +194,7 @@ int quickMenuBox[19][4] = {
     {164, 6, 24, 78},  // EQ 7
     {187, 6, 24, 78},  // EQ 8
     {212, 6, 81, 78},  // Compressor
+    {295, 6, 23, 79},  // Out Gain
     {14, 94, 36, 22},  // Line
     {50, 94, 36, 22},  // GAte
     {87, 94, 36, 22},  // Comp
@@ -196,6 +204,19 @@ int quickMenuBox[19][4] = {
     {235, 94, 37, 22}, // A-Mu
     {272, 94, 37, 22}  // MkUp
 };
+
+const int QUICK_MENU_SELECTIONS = 18;
+
+int currentMixerMenuSelection = 0;
+int mixerMenuBox[6][4] = {
+    { 33, 16, 24, 68},   // IN Gain
+    { 58, 16, 24, 68},   // EQ 1
+    { 94,  8, 26, 75},   // EQ 2
+    {132, 15, 24, 68},   // EQ 3
+    {155, 15, 26, 68},   // EQ 3
+    {180, 15, 24, 68}   // EQ 4
+};
+const int MIXER_MENU_SELECTIONS = 5;
 
 elapsedMillis fps;
 
@@ -303,6 +324,10 @@ float myAMGheadroom = MYAMGHEADROOM;
 // Default Makeup Gain parameters
 int mupFlag = MUPFLAG;
 float myMUPgain = MYMUPGAIN;
+
+// Added vars for mixer
+float myUSBInputFader = 0.5; // Range 0 to 1f  - 0 = USB, 1 = INPUT
+float myDACVolume = 1.0;     // dac volume 0 to 1f
 
 float barPeak[20];
 float xPreNeedleOld;
@@ -685,6 +710,14 @@ bool mupOFF()
     return true;
 }
 
+bool inputFaderControl()
+{
+  inputMixer.gain(1, myUSBInputFader);
+  inputMixer.gain(0, 1.0f - myUSBInputFader);
+  return true;
+}
+
+
 // TOGGLE(mupFlag, setMUP, "Makeup Gain: ", doNothing, noEvent, wrapStyle
 //        , VALUE("On", 1, mupON, noEvent)
 //        , VALUE("Off", 0, mupOFF, noEvent)
@@ -740,173 +773,319 @@ void drawQuickMenu(int b, int c)
     {
         fps = 0; // only reset timer if encoder isn't turning.
     }
-    currentQuickMenuSelection = currentQuickMenuSelection + b;
-    if (currentQuickMenuSelection > 16)
-    {
-        currentQuickMenuSelection = 0;
+
+
+    if (currentQuickMenuLevel == 0) {  // do this if we are on the main menu
+
+
+      currentQuickMenuSelection = currentQuickMenuSelection + b;
+      if (currentQuickMenuSelection > QUICK_MENU_SELECTIONS)
+      {
+          currentQuickMenuSelection = 0;
+      }
+      if (currentQuickMenuSelection < 0)
+      {
+          currentQuickMenuSelection = QUICK_MENU_SELECTIONS;
+      }
+
+      im.drawRect({quickMenuBox[currentQuickMenuSelection][0], quickMenuBox[currentQuickMenuSelection][1]}, {quickMenuBox[currentQuickMenuSelection][2], quickMenuBox[currentQuickMenuSelection][3]}, RGB565_Red);
+
+
+      // update data from selected box!
+      if (c != 0)
+      {
+          fps = 0; // reset timer - we are working...
+
+        if (currentQuickMenuSelection == 0) {
+          currentMixerMenuSelection = 0;
+          currentQuickMenuLevel = 1;    /// activate the mixer menu
+        }
+          
+
+        if (currentQuickMenuSelection < 10 and currentQuickMenuSelection > 0){
+              ydBLevel[currentQuickMenuSelection-1] = ydBLevel[currentQuickMenuSelection-1] + c;
+              if (ydBLevel[currentQuickMenuSelection-1] > 12)
+              {
+                  ydBLevel[currentQuickMenuSelection-1] = 12;
+              }
+              if (ydBLevel[currentQuickMenuSelection-1] < -12)
+              {
+                  ydBLevel[currentQuickMenuSelection-1] = -12;
+              }
+              if(equalizerFlag == 1)  {
+                EqGainSetL();
+              }
+          }
+
+
+          if (currentQuickMenuSelection == 9)
+          {
+              myPRCratio = 30.0;                   // for testing
+              myPRCthreshold = myPRCthreshold + c; // , -110, 0,
+              if (myPRCthreshold > 0)
+              {
+                  myPRCthreshold = 0;
+              }
+              if (myPRCthreshold < -110)
+              {
+                  myPRCthreshold = -110;
+              }
+              Serial.print(myPRCthreshold);
+          }
+
+          if (currentQuickMenuSelection == 10) {  // activate mixer menu here too
+            currentQuickMenuSelection = 0;
+            currentQuickMenuLevel = 1;
+          }
+
+
+          if (currentQuickMenuSelection == 11)
+          {
+              myInput = myInput + c;
+              if (myInput > 1)
+              {
+                  myInput = 0;
+              }
+              if (myInput < 0)
+              {
+                  myInput = 1;
+              }
+          }
+
+          if (currentQuickMenuSelection == 12)
+          {
+              if (c != 0)
+              {
+                  if (noiseGateFlag == 1)
+                  {
+                      ngOFF();
+                  }
+                  else
+                  {
+                      ngON();
+                  }
+              }
+          }
+
+          if (currentQuickMenuSelection == 13)
+          {
+              if (c != 0)
+              {
+                  if (procFlag == 1)
+                  {
+                      procOFF();
+                  }
+                  else
+                  {
+                      procON();
+                  }
+              }
+          }
+
+          if (currentQuickMenuSelection == 14)
+          {
+              if (c != 0)
+              {
+                  if (limFlag == 1)
+                  {
+                      limOFF();
+                  }
+                  else
+                  {
+                      limON();
+                  }
+              }
+          }
+
+          if (currentQuickMenuSelection == 15)
+          {
+              if (c != 0)
+              {
+                  if (equalizerFlag == 1)
+                  {
+                      eqOFF();
+                  }
+                  else
+                  {
+                      eqON();
+                  }
+              }
+          }
+
+          if (currentQuickMenuSelection == 16)
+          {
+              if (c != 0)
+              {
+                  if (AVCFlag == 1)
+                  {
+                      AVCoff();
+                  }
+                  else
+                  {
+                      AVCon();
+                  }
+              }
+          }
+
+          if (currentQuickMenuSelection == 17)
+          {
+              if (c != 0)
+              {
+                  if (amgFlag == 1)
+                  {
+                      amgOFF();
+                  }
+                  else
+                  {
+                      amgON();
+                  }
+              }
+          }
+
+          if (currentQuickMenuSelection == 18)
+          {
+              if (c != 0)
+              {
+                  if (mupFlag == 1)
+                  {
+                      mupOFF();
+                  }
+                  else
+                  {
+                      mupON();
+                  }
+              }
+          }
+      }
     }
-    if (currentQuickMenuSelection < 0)
-    {
-        currentQuickMenuSelection = 16;
-    }
-
-    im.drawRect({quickMenuBox[currentQuickMenuSelection][0], quickMenuBox[currentQuickMenuSelection][1]}, {quickMenuBox[currentQuickMenuSelection][2], quickMenuBox[currentQuickMenuSelection][3]}, RGB565_Red);
-
-    // update data from selected box!
-    if (c != 0)
-    {
-        fps = 0; // reset timer - we are working...
-
-        if (currentQuickMenuSelection < 9)
-        {
-            ydBLevel[currentQuickMenuSelection] = ydBLevel[currentQuickMenuSelection] + c;
-            if (ydBLevel[currentQuickMenuSelection] > 12)
-            {
-                ydBLevel[currentQuickMenuSelection] = 12;
-            }
-            if (ydBLevel[currentQuickMenuSelection] < -12)
-            {
-                ydBLevel[currentQuickMenuSelection] = -12;
-            }
-            if(equalizerFlag == 1)  {
-              EqGainSetL();
-            }
-        }
-
-        if (currentQuickMenuSelection == 8)
-        {
-            myPRCratio = 30.0;                   // for testing
-            myPRCthreshold = myPRCthreshold + c; // , -110, 0,
-            if (myPRCthreshold > 0)
-            {
-                myPRCthreshold = 0;
-            }
-            if (myPRCthreshold < -110)
-            {
-                myPRCthreshold = -110;
-            }
-            Serial.print(myPRCthreshold);
-        }
-
-        if (currentQuickMenuSelection == 9)
-        {
-            myInput = myInput + c;
-            if (myInput > 1)
-            {
-                myInput = 0;
-            }
-            if (myInput < 0)
-            {
-                myInput = 1;
-            }
-        }
-
-        if (currentQuickMenuSelection == 10)
-        {
-            if (c != 0)
-            {
-                if (noiseGateFlag == 1)
-                {
-                    ngOFF();
-                }
-                else
-                {
-                    ngON();
-                }
-            }
-        }
-
-        if (currentQuickMenuSelection == 11)
-        {
-            if (c != 0)
-            {
-                if (procFlag == 1)
-                {
-                    procOFF();
-                }
-                else
-                {
-                    procON();
-                }
-            }
-        }
-
-        if (currentQuickMenuSelection == 12)
-        {
-            if (c != 0)
-            {
-                if (limFlag == 1)
-                {
-                    limOFF();
-                }
-                else
-                {
-                    limON();
-                }
-            }
-        }
-
-        if (currentQuickMenuSelection == 13)
-        {
-            if (c != 0)
-            {
-                if (equalizerFlag == 1)
-                {
-                    eqOFF();
-                }
-                else
-                {
-                    eqON();
-                }
-            }
-        }
-
-        if (currentQuickMenuSelection == 14)
-        {
-            if (c != 0)
-            {
-                if (AVCFlag == 1)
-                {
-                    AVCoff();
-                }
-                else
-                {
-                    AVCon();
-                }
-            }
-        }
-
-        if (currentQuickMenuSelection == 15)
-        {
-            if (c != 0)
-            {
-                if (amgFlag == 1)
-                {
-                    amgOFF();
-                }
-                else
-                {
-                    amgON();
-                }
-            }
-        }
-
-        if (currentQuickMenuSelection == 16)
-        {
-            if (c != 0)
-            {
-                if (mupFlag == 1)
-                {
-                    mupOFF();
-                }
-                else
-                {
-                    mupON();
-                }
-            }
-        }
-    }
+    if (currentQuickMenuLevel == 1 and currentQuickMenuSelection == 0){
+      drawMixerMenu(b,c);
+    }    
 }
+
+
+void drawMixerMenu(int b, int c) {
+
+  if (c != 0){  // keep the menu active while using
+    fps=0;
+  }
+
+  im.blit(Mixer, 28,4,1.0);
+  
+  currentMixerMenuSelection = currentMixerMenuSelection + b;
+  if (currentMixerMenuSelection > MIXER_MENU_SELECTIONS)
+  {
+      currentMixerMenuSelection = 0;
+  }
+  if (currentMixerMenuSelection < 0)
+  {
+      currentMixerMenuSelection = MIXER_MENU_SELECTIONS;
+  }
+
+  im.drawRect({mixerMenuBox[currentMixerMenuSelection][0], mixerMenuBox[currentMixerMenuSelection][1]}, {mixerMenuBox[currentMixerMenuSelection][2], mixerMenuBox[currentMixerMenuSelection][3]}, RGB565_Red);
+
+
+  // deal with settings....
+
+  if ( c != 0) {
+    if (currentMixerMenuSelection == 0) {    // Mic IN Gain
+      micGainSet = micGainSet + c;
+      if (micGainSet < 0) { 
+        micGainSet = 0;
+      }  
+      if (micGainSet > 63) { 
+        micGainSet = 63;
+      } 
+      audioShield.micGain(micGainSet);
+    }
+
+
+    if (currentMixerMenuSelection == 1) {    // Line IN Gain
+      myLineInLevel = myLineInLevel + c;
+      if (myLineInLevel < 0) { 
+        myLineInLevel = 0;
+      }  
+      if (myLineInLevel > 15) { 
+        myLineInLevel = 15;
+      } 
+      audioShield.lineInLevel(myLineInLevel);
+    }
+
+
+    if (currentMixerMenuSelection == 2) {    // USB/INPUT fader
+      myUSBInputFader = myUSBInputFader + (c * .05);  // .05 (20 step resolution)
+      if (myUSBInputFader < 0) { 
+        myUSBInputFader = 0;
+      }  
+      if (myUSBInputFader > 1) { 
+        myUSBInputFader = 1;
+      } 
+      inputFaderControl();
+    }
+
+
+    if (currentMixerMenuSelection == 3) {    // HeadPhone volume
+      myDACVolume = myDACVolume + (c * .05);  // 20 step resolution
+      if (myDACVolume < 0) { 
+        myDACVolume = 0;
+      }  
+      if (myDACVolume > 1) { 
+        myDACVolume = 1;
+      } 
+      audioShield.dacVolume(myDACVolume);
+    }
+
+
+    if (currentMixerMenuSelection == 4) {    // DAC Volume
+      myVolume = myVolume + (c * .05);  // 20 step resolution
+      if (myVolume < 0) { 
+        myVolume = 0;
+      }  
+      if (myVolume > 1) { 
+        myVolume = 1;
+      } 
+      audioShield.volume(myVolume);
+    }
+
+    if (currentMixerMenuSelection == 5) {    // lineOUtLevel
+      myLineOutLevel = myLineOutLevel + (c);  
+      if (myLineOutLevel < 13) { 
+        myLineOutLevel = 13;
+      }  
+      if (myLineOutLevel > 31) { 
+        myLineOutLevel = 31;
+      } 
+      audioShield.lineOutLevel(myLineOutLevel);
+    }
+
+
+  }
+
+  
+  // Draw sliders
+  int y;
+  y = map(micGainSet, 0, 63, 0, 45);
+  im.blit(EQSlider, 38, 65 - y, 1.0);   // Mic Gain
+
+  y = map(myLineInLevel, 0, 15, 0, 45);
+  im.blit(EQSlider, 63, 65 - y, 1.0);   // Line In Gain
+
+  y = map(myUSBInputFader, 0, 1, 0, 45);
+  im.blit(EQSlider, 99, 65 - y, 1.0);   // USB/Level Fader
+
+  y = map(myDACVolume, 0, 1, 0, 45);
+  im.blit(EQSlider, 137, 65 - y, 1.0);   // DAC Volume
+
+  y = map(myVolume, 0, 1, 0, 45);
+  im.blit(EQSlider, 161, 65 - y, 1.0);   // Headphone Volume
+
+  y = map(myLineOutLevel, 31, 13, 0, 45);
+  im.blit(EQSlider, 185, 65 - y, 1.0);   // myLineOutLevel Volume
+
+}
+
+
+
 
 // Floating point map function declatration
 double mapf(double x, double in_min, double in_max, double out_min, double out_max)
@@ -946,11 +1125,13 @@ void setup(void)
     Timer1.attachInterrupt(timerIsr);
     Serial.println("Knob encoder isr routines started.");
     
-    AudioMemory(100);
-    AudioMemory_F32(100);
+    AudioMemory(20);
+    AudioMemory_F32(20);
     audioShield.enable();
     audioShield.muteHeadphone();
     audioShield.muteLineout();
+    audioShield.dacVolumeRamp(); // smmothly move between volume levels to avoid pops and clocks
+    audioShield.audioProcessorDisable();
     audioShield.inputSelect(myInput);
     audioShield.lineInLevel(0, 0);
     audioShield.volume(0.5);
@@ -976,6 +1157,12 @@ void setup(void)
     audioShield.unmuteHeadphone();
     audioShield.unmuteLineout();
     Serial.println("Outputs unmuted");
+
+    Serial.print("Audio Memory in use:"); Serial.println(AudioMemoryUsage());
+    Serial.print("CPU: Max Percent Usage: ");
+    Serial.println(AudioProcessorUsageMax());
+    Serial.print("   Max Float 32 Memory: ");
+    Serial.println(AudioMemoryUsageMax_F32());
 
 /**
     Serial.println("Calculating FFT Bin groups");
@@ -1010,6 +1197,9 @@ void loop()
     if (b != 0 or fps < 5000)
     {
         drawQuickMenu(b, c);
+    }
+    else {
+      currentQuickMenuLevel = 0;
     }
 
     display.update(fb);
@@ -1050,13 +1240,13 @@ void SetAudioShield()
     audioShield.lineOutLevel(myLineOutLevel);
 
     audioShield.volume(myVolume);
-    audioShield.adcHighPassFilterEnable();
-    audioShield.dacVolume(1);
-    audioShield.dacVolumeRamp();
+    //audioShield.adcHighPassFilterEnable();
+    //audioShield.dacVolume(1);
+    //audioShield.dacVolumeRamp();
 
-    audioShield.audioPreProcessorEnable();
-    audioShield.audioPostProcessorEnable();
-
+    //audioShield.audioPreProcessorEnable();
+    //audioShield.audioPostProcessorEnable();
+    audioShield.audioProcessorDisable();
     if (equalizerFlag == 1)
         eqON();
     else
@@ -1164,7 +1354,7 @@ void EqGainSetL()
         dbBand[freqBand] = ydBLevel[freqBand];
     }
     // punch the filter again...
-    uint16_t eq = equalize.equalizerNew(8, &fBand[0], &dbBand[0], 30, &equalizeCoeffs[0], 60.0);
+    equalize.equalizerNew(8, &fBand[0], &dbBand[0], 30, &equalizeCoeffs[0], 60.0);
 }
 
 void drawButtons()
@@ -1248,9 +1438,9 @@ void drawVUmeters()
     const int posYin = 73;
     const int posXout = 300;
     const int posYout = 73;
-    const int minHeight = 1;
+    //const int minHeight = 1;
     const int maxHeight = 33;
-    float peakFloat = 1.2;
+    //float peakFloat = 1.2;
     float peak, peakVal;
     float peakPreM = 0.0;
     float peakPostM = 0.0;
@@ -1307,12 +1497,12 @@ void drawFFT()
     const int barWidth = 15;
     const int posX = 29;
     const int posY = 229;
-    const int minHeight = 1;
+    //const int minHeight = 1;
     const int maxHeight = 36;
     int mVal = 0;
     int delta = 0;
     float n;
-    int16_t val;
+    // int16_t val;
     float peakFloat = 1.2;
 
     ///////////////////////////////////////////////////////////////////////
@@ -1322,7 +1512,7 @@ void drawFFT()
     if (fftValues.available())
     {
 
-        for (int i = 0; i < nBars; i++)
+        for (int i = 0; i < nBars-1; i++)  // was getting another FFT bar off the RT of the screen...
         {
             n = fftValues.read(fftOctTab[i * 2], fftOctTab[i * 2 + 1]);
             delta= fftOctTab[i * 2 + 1] - fftOctTab[i * 2];
