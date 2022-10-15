@@ -710,6 +710,14 @@ bool mupOFF()
     return true;
 }
 
+bool inputFaderControl()
+{
+  inputMixer.gain(1, myUSBInputFader);
+  inputMixer.gain(0, 1.0f - myUSBInputFader);
+  return true;
+}
+
+
 // TOGGLE(mupFlag, setMUP, "Makeup Gain: ", doNothing, noEvent, wrapStyle
 //        , VALUE("On", 1, mupON, noEvent)
 //        , VALUE("Off", 0, mupOFF, noEvent)
@@ -1012,9 +1020,7 @@ void drawMixerMenu(int b, int c) {
       if (myUSBInputFader > 1) { 
         myUSBInputFader = 1;
       } 
-      float usbLevel = myUSBInputFader;
-      float inputLevel = 1 - usbLevel;
-      // set usb/input levels here
+      inputFaderControl();
     }
 
 
