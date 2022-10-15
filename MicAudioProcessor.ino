@@ -75,18 +75,26 @@ void timerIsr()
     clickEncoder2.service();
 }
 
-// GUItool: begin automatically generated code
-AudioInputI2S_F32 audioInput;      
-AudioInputUSB_F32 audioInUSB1;     
-AudioMixer4_F32 inputMixer;       
+// Let's get programmatic about our settings and not take the defaults, eh?
+const float sample_rate_Hz = 44100.0f; // overboard for our appliation, but why not?
+const int audio_block_samples = 128;  // max numb of blocks, and the default
+AudioSettings_F32 audio_settings(sample_rate_Hz, audio_block_samples);
+
+AudioControlSGTL5000 audioShield; 
+
+AudioInputI2S_F32 audioInput(audio_settings);      
+AudioInputUSB_F32 audioInUSB1(audio_settings);   
+AudioOutputI2S_F32 audioOutput(audio_settings);  
+
+AudioMixer4_F32 inputMixer(audio_settings);       
 AudioAnalyzePeak_F32 peakPre;      
 AudioSwitch4_OA_F32 eqSwitch;     
-AudioFilterEqualizer_F32 equalize; //https://forum.pjrc.com/threads/60928-Audio-Equalizer-using-FIR
-AudioMixer4_F32 EQ_mix;            
-AudioEffectDynamics_F32 Dynamics;  
+AudioFilterEqualizer_F32 equalize(audio_settings); //https://forum.pjrc.com/threads/60928-Audio-Equalizer-using-FIR
+AudioMixer4_F32 EQ_mix(audio_settings);            
+AudioEffectDynamics_F32 Dynamics(audio_settings, AudioEffectDynamics_F32::DetectorType_RMS);  //Switch from Peak detect to RMS  
 AudioAnalyzePeak_F32 peakPost;    
 AudioAnalyzeFFT1024_F32 fftValues; 
-AudioOutputI2S_F32 audioOutput;   
+ 
 AudioConnection_F32 patchCord1(audioInput, 0, inputMixer, 0);
 AudioConnection_F32 patchCord2(audioInUSB1, 0, inputMixer, 1);
 AudioConnection_F32 patchCord3(inputMixer, peakPre);
@@ -96,12 +104,8 @@ AudioConnection_F32 patchCord7(eqSwitch, 1, EQ_mix, 2);
 AudioConnection_F32 patchCord8(equalize, 0, EQ_mix, 0);
 AudioConnection_F32 patchCord10(EQ_mix, Dynamics);
 AudioConnection_F32 patchCord11(Dynamics, fftValues);
-//AudioConnection_F32 patchCord14(inputMixer, fftValues);
 AudioConnection_F32 patchCord12(Dynamics, 0, audioOutput, 0);
 AudioConnection_F32 patchCord13(Dynamics, peakPost);
-
-AudioControlSGTL5000 audioShield; 
-// GUItool: end automatically generated code
 
 // Auto Volume Control (AVC) on
 /* Valid values for dap_avc parameters
@@ -831,8 +835,11 @@ void drawQuickMenu(int b, int c)
           if (myLineOutLevel < 13){
             myLineOutLevel = 13;
           }
-        audioOutput.setGain(mapf(myLineOutLevel,13,31,0.0f, 1.0f));
-        audioShield.volume(mapf(myLineOutLevel,13,31,0.0f, 1.0f));
+        //  Need to re-think this...  not sure best place for output 
+        // probably not the audioOutput block on the Teensy before the i2c back to the audio board...
+        // audioOutput.setGain(mapf(myLineOutLevel,13,31,0.0f, 1.0f));
+        audioShield.volume(mapf(myLineOutLevel,13,31,0.0f, 0.8f));  //Headphones and constrained to 0.8f max recommended before distortion.
+        audioShield.lineOutLevel(myLineOutLevel); //Line Out
         }
 
 
@@ -1112,7 +1119,7 @@ void SetAudioShield()
 
     //audioShield.audioPreProcessorEnable();
     //audioShield.audioPostProcessorEnable();
-    //audioShield.audioProcessorDisable();
+    audioShield.audioProcessorDisable();
     if (equalizerFlag == 1)
         eqON();
     else
@@ -1220,7 +1227,7 @@ void EqGainSetL()
         dbBand[freqBand] = ydBLevel[freqBand];
     }
     // punch the filter again...
-    uint16_t eq = equalize.equalizerNew(8, &fBand[0], &dbBand[0], 30, &equalizeCoeffs[0], 60.0);
+    equalize.equalizerNew(8, &fBand[0], &dbBand[0], 30, &equalizeCoeffs[0], 60.0);
 }
 
 void drawButtons()
@@ -1304,9 +1311,9 @@ void drawVUmeters()
     const int posYin = 73;
     const int posXout = 300;
     const int posYout = 73;
-    const int minHeight = 1;
+    //const int minHeight = 1;
     const int maxHeight = 33;
-    float peakFloat = 1.2;
+    //float peakFloat = 1.2;
     float peak, peakVal;
     float peakPreM = 0.0;
     float peakPostM = 0.0;
@@ -1374,12 +1381,12 @@ void drawFFT()
     const int barWidth = 15;
     const int posX = 29;
     const int posY = 229;
-    const int minHeight = 1;
+    //const int minHeight = 1;
     const int maxHeight = 36;
     int mVal = 0;
     int delta = 0;
     float n;
-    int16_t val;
+    // int16_t val;
     float peakFloat = 1.2;
 
     ///////////////////////////////////////////////////////////////////////
@@ -1389,7 +1396,7 @@ void drawFFT()
     if (fftValues.available())
     {
 
-        for (int i = 0; i < nBars; i++)
+        for (int i = 0; i < nBars-1; i++)  // was getting another FFT bar off the RT of the screen...
         {
             n = fftValues.read(fftOctTab[i * 2], fftOctTab[i * 2 + 1]);
             delta= fftOctTab[i * 2 + 1] - fftOctTab[i * 2];
