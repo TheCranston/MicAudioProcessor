@@ -3,6 +3,14 @@
 #include "USB_Audio_F32.h"       // But why not?!?!?
 #include "effect_dynamics_F32.h" // Add this: https://github.com/MarkzP/AudioEffectDynamics_F32
 
+// Not sure why I had to do this, they are included in the line previous....
+#ifndef MIN_DB
+#define MIN_DB -110.0f
+#endif
+#ifndef MAX_DB
+#define MAX_DB 0.0f
+#endif
+
 #include <Audio.h>
 #include <EEPROM.h> // store the config here for power persistance
 #include <Wire.h>
@@ -107,28 +115,6 @@ AudioConnection_F32 patchCord10(EQ_mix, Dynamics);
 AudioConnection_F32 patchCord11(Dynamics, fftValues);
 AudioConnection_F32 patchCord12(Dynamics, 0, audioOutput, 0);
 AudioConnection_F32 patchCord13(Dynamics, peakPost);
-
-// Auto Volume Control (AVC) on
-/* Valid values for dap_avc parameters
-  maxGain; Maximum gain that can be applied
-  0 - 0 dB
-  1 - 6 dB
-  2 - 12 dB
-  lbiResponse; Integrator Response
-  0 - 0 mS
-  1 - 25 mS
-  2 - 50 mS
-  3 - 100 mS
-  hardLimit
-  0 - Hard limit disabled. AVC Compressor/Expander enabled.
-  1 - Hard limit enabled. The signal is limited to the programmed threshold (signal saturates at the threshold)
-  threshold
-  floating point in range 0 to -96 dB
-  attack
-  floating point figure is dB/s rate at which gain is increased
-  decay
-  floating point figure is dB/s rate at which gain is reduced
-*/
 
 // DEFAULT FLAGS
 #define AVCFLAG 0;
@@ -437,107 +423,16 @@ bool eqOFF()
 
 bool AVCon()
 {
+  // Disabled for now
     AVCFlag = 1;
-    audioShield.autoVolumeControl(myAVCGain // Maximum gain that can be applied 0 - 0 dB / 1 - 6.0 dB / 2 - 12 dB
-                                  ,
-                                  myAVCResp // Integrator Response 0 - 0 mS / 1 - 25 mS / 2 - 50 mS / 3 - 100 mS
-                                  ,
-                                  myAVCHard // hardLimit
-                                  ,
-                                  myAVCThr // threshold floating point in range 0 to -96 dB
-                                  ,
-                                  myAVCAtt // attack floating point figure is dB/s rate at which gain is increased
-                                  ,
-                                  myAVCDec); // decay floating point figure is dB/s rate at which gain is reduced
-    audioShield.autoVolumeEnable();
-    // Serial.println(""); //Serial.print(e); //Serial.println(" AVCon executed, proceed menu"); //Serial.flush();
     return true;
 }
 
 // AVC off
 bool AVCoff()
 {
+    // Disabled for now
     AVCFlag = 0;
-    audioShield.autoVolumeDisable();
-    // Serial.println(""); //Serial.print(e); //Serial.println(" AVCoff executed, proceed menu"); //Serial.flush();
-    return true;
-}
-
-// MENU(subLevels, "Vol/Lim Levels", showEvent, anyEvent, wrapStyle
-//      , EXIT(" <- Back")
-//      , FIELD(     micGainSet,     "Mic.Gain", " ",   0, 63,   1,     , SetLevels, updateEvent, noStyle)
-//      , FIELD(       myVolume,    "Headphone", " ",   0,  1, 0.1, 0.01, SetLevels, updateEvent, noStyle)
-//      , FIELD(  myLineInLevel,      "Line In", " ",   0, 15,   1,     , SetLevels, updateEvent, noStyle)
-//      , FIELD( myLineOutLevel,     "Line Out", " ",  13, 31,   1,     , SetLevels, updateEvent, noStyle)
-//      , FIELD(  myAMGheadroom, "AMG Headroom", " ",   0, 60,   1,     , SetLevels, updateEvent, noStyle)
-//      , FIELD(      myMUPgain,  "Makeup Gain", " ", -12, 24,   1,     , SetLevels, updateEvent, noStyle)
-//    );
-
-// TOGGLE(myAVCGain, chooseAVCgain, "AVC Gain: ", doNothing, noEvent, wrapStyle
-//        , VALUE( "0 dB", 0, SetAVCParameters, updateEvent)
-//        , VALUE( "6 dB", 1, SetAVCParameters, updateEvent)
-//       , VALUE("12 dB", 2, SetAVCParameters, updateEvent)
-//       );
-
-// TOGGLE(myAVCResp, chooseAVCresp, "Response: ", doNothing, noEvent, wrapStyle
-//        , VALUE(  "0 ms", 0, SetAVCParameters, updateEvent)
-//        , VALUE( "25 ms", 1, SetAVCParameters, updateEvent)
-//        , VALUE( "50 ms", 2, SetAVCParameters, updateEvent)
-//        , VALUE("100 ms", 3, SetAVCParameters, updateEvent)
-//       );
-
-// TOGGLE(myAVCHard, setHardLimit, "Hard Limit: ", doNothing, noEvent, wrapStyle
-//        , VALUE("On", 1, SetAVCParameters, updateEvent)
-//        , VALUE("Off", 0, SetAVCParameters, updateEvent)
-//       );
-
-// MENU(subAVC, "Auto Vol Ctl cfg", showEvent, anyEvent, wrapStyle
-//      , EXIT(" <- Back")
-//      , SUBMENU(chooseAVCgain)
-//      , SUBMENU(chooseAVCresp)
-//      , SUBMENU(setHardLimit)
-//      , FIELD(   myAVCThr, "Thresh.", " dB", -96, 0, 1,    , SetAVCParameters, updateEvent, noStyle)
-//      , FIELD(   myAVCAtt, "Attack", " dB/s", 0, 10, 1, 0.1, SetAVCParameters, updateEvent, noStyle)
-//      , FIELD(   myAVCDec,  "Decay", " dB/s", 0, 10, 1, 0.1, SetAVCParameters, updateEvent, noStyle)
-//     );
-
-// TOGGLE(equalizerFlag, setEQ, "Equalizer: ", doNothing, noEvent, wrapStyle
-//        , VALUE("On", 1, eqON, noEvent)
-//        , VALUE("Off", 0, eqOFF, noEvent)
-//       );
-
-// TOGGLE(AVCFlag, setAVC, "Auto Vol Ctl: ", doNothing, noEvent, wrapStyle
-//        , VALUE("On", 1, AVCon, noEvent)
-//        , VALUE("Off", 0, AVCoff, noEvent)
-//       );
-
-// TOGGLE(myInput, selMenu, "Input: ", doNothing, noEvent, wrapStyle
-//        , VALUE("Mic", AUDIO_INPUT_MIC, SetInput, enterEvent)
-//        , VALUE("Line", AUDIO_INPUT_LINEIN, SetInput, enterEvent)
-//       );
-
-// MENU(subEQ, "Equalizer cfg", showEvent, anyEvent, wrapStyle
-//      , EXIT(" <- Back")
-//      , FIELD(ydBLevel[0], " 150 Hz", " db", -12, 12, 1, 0.1, EqGainSetL, updateEvent, noStyle)
-//      , FIELD(ydBLevel[1], " 240 Hz", " db", -12, 12, 1, 0.1, EqGainSetL, updateEvent, noStyle)
-//      , FIELD(ydBLevel[2], " 370 Hz", " db", -12, 12, 1, 0.1, EqGainSetL, updateEvent, noStyle)
-//      , FIELD(ydBLevel[3], " 600 Hz", " db", -12, 12, 1, 0.1, EqGainSetL, updateEvent, noStyle)
-//      , FIELD(ydBLevel[4], " 900 Hz", " db", -12, 12, 1, 0.1, EqGainSetL, updateEvent, noStyle)
-//      , FIELD(ydBLevel[5], "1.3 KHz", " db", -12, 12, 1, 0.1, EqGainSetL, updateEvent, noStyle)
-//      , FIELD(ydBLevel[6], "2.0 KHz", " db", -12, 12, 1, 0.1, EqGainSetL, updateEvent, noStyle)
-//      , FIELD(ydBLevel[7], "3.3 KHz", " db", -12, 12, 1, 0.1, EqGainSetL, updateEvent, noStyle)
-//     );
-
-bool toggleAudioSpectrum()
-{
-    if (spectrumFlag == 0)
-    {
-        spectrumFlag = 1;
-    }
-    else
-    {
-        spectrumFlag = 0;
-    }
     return true;
 }
 
@@ -545,117 +440,43 @@ bool ngON()
 {
     Dynamics.gate(myNGthreshold, myNGattackTime, myNGreleaseTime, myNGhysterisis, 0.0f); // account for F32 gate attenuation
     noiseGateFlag = 1;
-    Serial.println();
-    Serial.print(" myNGattackTime: "); Serial.print(myNGattackTime); Serial.print(" myNGreleaseTime: "); Serial.print(myNGreleaseTime); Serial.print(" myNGthreshold: "); Serial.print(myNGthreshold);
-    Serial.print(" myNGholdTime: "); Serial.print(myNGholdTime, 4); Serial.print(" myNGhysterisis: "); Serial.print(myNGhysterisis);
-    Serial.println();
-    Serial.println("Noise Gate ON");
     return true;
 }
 
 bool ngOFF()
 {
     noiseGateFlag = 0;
-    Dynamics.gate(-96.0f, myNGattackTime, myNGreleaseTime, myNGhysterisis, -96.0f); // account for F32 gate attenuation
-    Serial.println();
-    Serial.println("Noise Gate OFF");
+    Dynamics.gate(MIN_DB, myNGattackTime, myNGreleaseTime, myNGhysterisis, 0.0f); // account for F32 gate attenuation
     return true;
 }
-
-// MENU(subNG, "Noise Gate cfg", showEvent, anyEvent, wrapStyle
-//      , EXIT(" <- Back")
-//      , altFIELD(decPlaces<3>::menuField,  myNGattackTime,  "Attack", "", 0.0, 1.0, 0.01, 0.001, ngON, updateEvent, noStyle)
-//      , altFIELD(decPlaces<3>::menuField, myNGreleaseTime, "Release", "", 0.0, 1.0, 0.01, 0.001, ngON, updateEvent, noStyle)
-//      , FIELD(myNGthreshold, "Thresh.", "", -110.0, 50.0, 1, , ngON, updateEvent, noStyle)
-//      , FIELD(myNGhysterisis, "Hysteresis", "", 0.0f, 6.0f, 1, 0.1, ngON, updateEvent, noStyle)
-//      , altFIELD(decPlaces<4>::menuField, myNGholdTime, "Hold", "", 0.0001, 0.01, 0.001, 0.0001, ngON, updateEvent, noStyle)
-//     );
-
-// TOGGLE(noiseGateFlag, setNG, "Noise Gate: ", doNothing, noEvent, wrapStyle
-//        , VALUE("On", 1, ngON, noEvent)
-//        , VALUE("Off", 0, ngOFF, noEvent)
-//       );
 
 bool procON()
 {
     Dynamics.compression(myPRCthreshold, myPRCattack, myPRCrelease, myPRCratio, myPRCkneeWidth);
     procFlag = 1;
-    // Serial.println();
-    // Serial.print(" myPRCthreshold: "); //Serial.print(myPRCthreshold); //Serial.print(" myPRCattack: "); //Serial.print(myPRCattack , 4);
-    // Serial.print(" myPRCrelease: "); //Serial.print(myPRCrelease, 4); //Serial.print(" myPRCratio: "); //Serial.print(myPRCratio); //Serial.print(" myPRCkneeWidth: "); //Serial.print(myPRCkneeWidth);
-    // Serial.println();
-    // Serial.println("Processor ON");
     return true;
 }
 
 bool procOFF()
 {
-    Dynamics.compression(0.0f, 0.03f, 0.5f, 1.0f, 6.0f);
+    Dynamics.compression(MAX_DB, myPRCattack, myPRCrelease, myPRCratio, myPRCkneeWidth);
     procFlag = 0;
-    // Serial.println();
-    // Serial.print(" myPRCthreshold: "); //Serial.print(myPRCthreshold); //Serial.print(" myPRCattack: "); //Serial.print(myPRCattack, 4);
-    // Serial.print(" myPRCrelease: "); //Serial.print(myPRCrelease, 4); //Serial.print(" myPRCratio: "); //Serial.print(myPRCratio); //Serial.print(" myPRCkneeWidth: "); //Serial.print(myPRCkneeWidth);
-    // Serial.println();
-    // Serial.println("Processor OFF");
     return true;
 }
-
-// MENU(subProc, "Processor cfg", showEvent, anyEvent, wrapStyle
-//      , EXIT(" <- Back")
-//      , FIELD( myPRCthreshold, "Thresh.", "", -110.0, 0.0, 1, , procON, updateEvent, noStyle)
-//      , altFIELD(decPlaces<3>::menuField,  myPRCattack,  "Attack", "", 0.0, 1.0, 0.01, 0.001, procON, updateEvent, noStyle)
-//      , altFIELD(decPlaces<3>::menuField, myPRCrelease, "Release", "", 0.0, 1.0, 0.01, 0.001, procON, updateEvent, noStyle)
-//      , FIELD(     myPRCratio,      "Ratio", "", 1.0, 60.0, 1, , procON, updateEvent, noStyle)
-//      , FIELD( myPRCkneeWidth, "Knee Width", "", 0.0, 32.0, 1, , procON, updateEvent, noStyle)
-//     );
-
-// TOGGLE(procFlag, setProc, "Processor: ", doNothing, noEvent, wrapStyle
-//        , VALUE("On", 1, procON, noEvent)
-//        , VALUE("Off", 0, procOFF, noEvent)
-//       );
 
 bool limON()
 {
     Dynamics.limit(myLIMthreshold, myLIMattack, myLIMrelease);
     limFlag = 1;
-    // Serial.println();
-    // Serial.print(" myLIMthreshold: "); //Serial.print(myLIMthreshold); //Serial.print(" myLIMattack: "); //Serial.print(myLIMattack, 4); //Serial.print(" myLIMrelease: "); //Serial.print(myLIMrelease, 4);
-    // Serial.println();
-    // Serial.println("Limiter ON");
     return true;
 }
 
 bool limOFF()
 {
-    Dynamics.limit(myLIMthreshold, myLIMattack, myLIMrelease);
+    Dynamics.limit(MAX_DB, myLIMattack, myLIMrelease);
     limFlag = 0;
-    // Serial.println();
-    // Serial.print(" myLIMthreshold: "); //Serial.print(myLIMthreshold); //Serial.print(" myLIMattack: "); //Serial.print(myLIMattack, 4); //Serial.print(" myLIMrelease: "); //Serial.print(myLIMrelease, 4);
-    // Serial.println();
-    // Serial.println("Limiter OFF");
     return true;
 }
-
-// MENU(subLim, "Limiter cfg", showEvent, anyEvent, wrapStyle
-//      , EXIT(" <- Back")
-//      , FIELD( myLIMthreshold, "Thresh.", "", -110.0, 0.0, 1, , limON, updateEvent, noStyle)
-//      , altFIELD(decPlaces<3>::menuField,  myLIMattack,  "Attack", "", 0.0, 4.0, 0.01, 0.001, limON, updateEvent, noStyle)
-//      , altFIELD(decPlaces<3>::menuField, myLIMrelease, "Release", "", 0.0, 4.0, 0.01, 0.001, limON, updateEvent, noStyle)
-//     );
-
-// TOGGLE(limFlag, setLim, "Limiter: ", doNothing, noEvent, wrapStyle
-//        , VALUE("On", 1, limON, noEvent)
-//        , VALUE("Off", 0, limOFF, noEvent)
-//       );
-
-// MENU(sdCard, "Save Settings", doNothing, noEvent, wrapStyle
-//      , FIELD(myPreset, "Select preset", "", 0, 9, 1, , doNothing, noEvent, wrapStyle)
-//      , OP("Read preset", readFromFile, enterEvent)
-//      , OP("Save preset",  writeToFile, enterEvent)
-//      , OP("Del. preset",   deleteFile, enterEvent)
-//      , OP("Load default", resetDefault, enterEvent)
-//      , EXIT(" <- Back")
-//     );
 
 bool amgON()
 {
@@ -663,10 +484,6 @@ bool amgON()
     mupFlag = 0;
     Dynamics.autoMakeupGain(myAMGheadroom);
     amgFlag = 1;
-    // Serial.println();
-    // Serial.print(" myAMGheadroom: "); //Serial.print(myAMGheadroom);
-    // Serial.println();
-    // Serial.println("Auto Makeup Gain ON and Makeup Gain OFF");
     return true;
 }
 
@@ -674,17 +491,8 @@ bool amgOFF()
 {
     Dynamics.autoMakeupGain(0.0f);
     amgFlag = 0;
-    // Serial.println();
-    // Serial.print(" myAMGheadroom: "); //Serial.print(0.0f);
-    // Serial.println();
-    // Serial.println("Auto Makeup Gain OFF");
     return true;
 }
-
-// TOGGLE(amgFlag, setAMG, "Auto MU Gain: ", doNothing, noEvent, wrapStyle
-//        , VALUE("On", 1, amgON, noEvent)
-//        , VALUE("Off", 0, amgOFF, noEvent)
-//       );
 
 bool mupON()
 {
@@ -692,10 +500,6 @@ bool mupON()
     amgFlag = 0;
     Dynamics.makeupGain(myMUPgain);
     mupFlag = 1;
-    // Serial.println();
-    // Serial.print(" myMUPgain: "); //Serial.print(myMUPgain);
-    // Serial.println();
-    // Serial.println("Makeup Gain ON and Auto Makeup OFF");
     return true;
 }
 
@@ -703,10 +507,6 @@ bool mupOFF()
 {
     Dynamics.makeupGain(0.0f);
     mupFlag = 0;
-    // Serial.println();
-    // Serial.print(" myMUPgain: "); //Serial.print(0.0f);
-    // Serial.println();
-    // Serial.println("Makeup Gain OFF");
     return true;
 }
 
@@ -716,38 +516,6 @@ bool inputFaderControl()
   inputMixer.gain(0, 1.0f - myUSBInputFader);
   return true;
 }
-
-
-// TOGGLE(mupFlag, setMUP, "Makeup Gain: ", doNothing, noEvent, wrapStyle
-//        , VALUE("On", 1, mupON, noEvent)
-//        , VALUE("Off", 0, mupOFF, noEvent)
-//       );
-
-// MENU(mainMenu, "Main menu", doNothing, noEvent, wrapStyle
-//      , OP("Spectrum disp", toggleAudioSpectrum, enterEvent)
-//      , SUBMENU(subLevels)
-//      , SUBMENU(subNG)
-//      , SUBMENU(setNG)
-//      , SUBMENU(subProc)
-//      , SUBMENU(setProc)
-//      , SUBMENU(subLim)
-//      , SUBMENU(setLim)
-//      , SUBMENU(setAMG)
-//      , SUBMENU(setMUP)
-//      , SUBMENU(subEQ)
-//      , SUBMENU(setEQ)
-//      , SUBMENU(subAVC)
-//      , SUBMENU(setAVC)
-//      , SUBMENU(selMenu)
-//      , SUBMENU(sdCard)
-//     );
-
-// bool showEvent(eventMask e, navNode & nav, prompt & item) {
-// Serial.println();
-// Serial.print("event: ");
-// Serial.print(e);
-//  return true;
-//}
 
 void MyDelay(unsigned long ms)
 {
@@ -837,6 +605,9 @@ void drawQuickMenu(int b, int c)
             currentQuickMenuSelection = 0;
             currentQuickMenuLevel = 1;
           }
+        audioShield.volume(mapf(myLineOutLevel,13,31,0.0f, 0.8f));  //Headphones and constrained to 0.8f max recommended before distortion.
+        audioShield.lineOutLevel(myLineOutLevel); //Line Out
+        }
 
 
           if (currentQuickMenuSelection == 11)
@@ -1123,7 +894,7 @@ void setup(void)
 
     Timer1.initialize(500);
     Timer1.attachInterrupt(timerIsr);
-    Serial.println("Knob encoder isr routines started.");
+    Serial.println("Knob encoder interrupt routines started.");
     
     AudioMemory(20);
     AudioMemory_F32(20);
@@ -1133,14 +904,14 @@ void setup(void)
     audioShield.dacVolumeRamp(); // smmothly move between volume levels to avoid pops and clocks
     audioShield.audioProcessorDisable();
     audioShield.inputSelect(myInput);
-    audioShield.lineInLevel(0, 0);
-    audioShield.volume(0.5);
+    audioShield.lineInLevel(0, 0);  // Sane start point before config restore
+    audioShield.volume(0.5); // ditto
     audioShield.adcHighPassFilterDisable(); // no need for DCblocking filter. physical filter exists
     Serial.println("Audio subsystem up");
 
     fftValues.windowFunction(AudioWindowBlackmanHarris1024);
     fftValues.setNAverage(1);
-    fftValues.setOutputType(FFT_DBFS);
+    fftValues.setOutputType(FFT_DBFS);  // graphs real nice on our display
 
     uint16_t eq = equalize.equalizerNew(8, &fBand[0], &dbBand[0], 30, &equalizeCoeffs[0], 60.0);
     if (eq == ERR_EQ_BANDS)
@@ -1163,23 +934,8 @@ void setup(void)
     Serial.println(AudioProcessorUsageMax());
     Serial.print("   Max Float 32 Memory: ");
     Serial.println(AudioMemoryUsageMax_F32());
-
-/**
-    Serial.println("Calculating FFT Bin groups");
-    for (int b = 0 ; b < 20 ; b++)
-    {
-       int from = int (exp (log (512) * b / 20)) ;
-       int to   = int (exp (log (512) * (b+1) / 20)) ;
-       Serial.print(from);
-       Serial.print(", ");
-       Serial.print(to);
-       Serial.println(",");
-    }
-**/
 }
 
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
 void loop()
 {
 
@@ -1205,10 +961,6 @@ void loop()
     display.update(fb);
     yield();
 
-    if (spectrumFlag != 1)
-    {
-        //    nav.poll();
-    }
     if (spectrumFlag == -1)
     { // turn this off
         ////Serial.println("Loop2");
@@ -1240,20 +992,15 @@ void SetAudioShield()
     audioShield.lineOutLevel(myLineOutLevel);
 
     audioShield.volume(myVolume);
-    //audioShield.adcHighPassFilterEnable();
-    //audioShield.dacVolume(1);
-    //audioShield.dacVolumeRamp();
 
-    //audioShield.audioPreProcessorEnable();
-    //audioShield.audioPostProcessorEnable();
     audioShield.audioProcessorDisable();
+
+    EqGainSetL();       // Setup Equalizer coefficients before turning on.. avoids pop
+
     if (equalizerFlag == 1)
         eqON();
     else
         eqOFF();
-
-    EqGainSetL();       // Setup Equalizer levels
-    SetAVCParameters(); // Setup AVC parameters
 
     /* Dynamics - Order of events:
       1. gate -> timeToAlpha -> timeToAlpha
@@ -1292,35 +1039,8 @@ void SetAudioShield()
     audioShield.unmuteLineout();
 }
 
-void SetAVCParameters()
-{
-    // Serial.println();
-    // Serial.print(" Comp Gain: "); //Serial.print(myAVCGain); //Serial.print(" Comp Resp: "); //Serial.print(myAVCResp); //Serial.print(" Hardlimit: "); //Serial.print(myAVCHard);
-    // Serial.print(" Threshold: "); //Serial.print( myAVCThr); //Serial.print(" Attack: "); //Serial.print(myAVCAtt); //Serial.print(" Decay: "); //Serial.print(myAVCDec);
-    // Serial.print(" Mic Gain: "); //Serial.print(micGainSet);
-
-    if (AVCFlag == 1)
-    {
-        audioShield.autoVolumeControl(myAVCGain // Maximum gain that can be applied 0 - 0 dB / 1 - 6.0 dB / 2 - 12 dB
-                                      ,
-                                      myAVCResp // Integrator Response 0 - 0 mS / 1 - 25 mS / 2 - 50 mS / 3 - 100 mS
-                                      ,
-                                      myAVCHard // hardLimit
-                                      ,
-                                      myAVCThr // threshold floating point in range 0 to -96 dB
-                                      ,
-                                      myAVCAtt // attack floating point figure is dB/s rate at which gain is increased
-                                      ,
-                                      myAVCDec); // decay floating point figure is dB/s rate at which gain is reduced
-        audioShield.autoVolumeEnable();
-    }
-}
-
 void SetLevels()
 {
-    // Serial.println();
-    // Serial.print(" Headphone: ");     // Serial.print(myVolume); //Serial.print(" Line In Level: "); //Serial.print(myLineInLevel); //Serial.print(" Line Out Level: "); //Serial.print(myLineOutLevel);
-    // Serial.print(" myAMGheadroom: "); // Serial.print(myAMGheadroom); //Serial.print(" myMUPgain: "); //Serial.print(myMUPgain);
     audioShield.volume(myVolume);
     audioShield.micGain(micGainSet);
     audioShield.lineInLevel(myLineInLevel);
@@ -1329,22 +1049,6 @@ void SetLevels()
         Dynamics.autoMakeupGain(myAMGheadroom);
     if (mupFlag == 1)
         Dynamics.makeupGain(myMUPgain);
-}
-
-void SetInput()
-{
-    if (myInput == AUDIO_INPUT_MIC)
-    {
-        audioShield.lineInLevel(0);
-        audioShield.micGain(micGainSet);
-    }
-    else
-    {
-        audioShield.lineInLevel(myLineInLevel);
-        audioShield.micGain(0);
-    }
-    SetAudioShield();
-    // Serial.println(); // Serial.print("Input: "); //Serial.print(myInput);
 }
 
 void EqGainSetL()
@@ -1610,12 +1314,6 @@ void readFromFile()
         mupFlag = mySaveSet.mupFlag;
         myMUPgain = mySaveSet.myMUPgain;
     }
-    else
-    {
-        //     display.fillScreen(ILI9341_BLACK);
-        //     display.setCursor(0, 0);
-        //     display.print("No settings found");
-    }
     SetAudioShield();
 }
 
@@ -1667,10 +1365,6 @@ void writeToFile()
     EEPROM.put(0, EEPROM_MAGIC);
     int address = sizeof(EEPROM_MAGIC);
     EEPROM.put(address, mySaveSet);
-
-    //   display.fillScreen(ILI9341_BLACK);
-    //   display.setCursor(0, 0);
-    //   display.print("Settings saved");
 }
 
 void deleteFile()
