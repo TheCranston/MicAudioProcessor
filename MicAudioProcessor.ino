@@ -31,6 +31,7 @@
 #include "A-VolOn.h"
 #include "A-MuOn.h"
 #include "MkUpOn.h"
+#include "Mixer.h"
 
 #include <TimerOne.h>
 #include <ClickEncoder.h>
@@ -181,6 +182,7 @@ AudioConnection_F32 patchCord13(Dynamics, peakPost);
 
 // Quick Menu
 int currentQuickMenuSelection = 0;
+int currentQuickMenuLevel = 0;
 int quickMenuBox[21][4] = {
     {4,  6, 23, 78},   // IN Gain
     {31, 6, 24, 78},   // EQ 1
@@ -204,6 +206,17 @@ int quickMenuBox[21][4] = {
 };
 
 const int QUICK_MENU_SELECTIONS = 18;
+
+int currentMixerMenuSelection = 0;
+int mixerMenuBox[6][4] = {
+    { 33, 16, 24, 68},   // IN Gain
+    { 58, 16, 24, 68},   // EQ 1
+    { 94,  8, 26, 75},   // EQ 2
+    {132, 15, 24, 68},   // EQ 3
+    {155, 15, 26, 68},   // EQ 3
+    {180, 15, 24, 68}   // EQ 4
+};
+const int MIXER_MENU_SELECTIONS = 5;
 
 elapsedMillis fps;
 
@@ -311,6 +324,10 @@ float myAMGheadroom = MYAMGHEADROOM;
 // Default Makeup Gain parameters
 int mupFlag = MUPFLAG;
 float myMUPgain = MYMUPGAIN;
+
+// Added vars for mixer
+float myUSBInputFader = 0.5; // Range 0 to 1f  - 0 = USB, 1 = INPUT
+float myDACVolume = 1.0;     // dac volume 0 to 1f
 
 float barPeak[20];
 float xPreNeedleOld;
@@ -748,220 +765,321 @@ void drawQuickMenu(int b, int c)
     {
         fps = 0; // only reset timer if encoder isn't turning.
     }
-    currentQuickMenuSelection = currentQuickMenuSelection + b;
-    if (currentQuickMenuSelection > QUICK_MENU_SELECTIONS)
-    {
-        currentQuickMenuSelection = 0;
-    }
-    if (currentQuickMenuSelection < 0)
-    {
-        currentQuickMenuSelection = QUICK_MENU_SELECTIONS;
-    }
 
-    im.drawRect({quickMenuBox[currentQuickMenuSelection][0], quickMenuBox[currentQuickMenuSelection][1]}, {quickMenuBox[currentQuickMenuSelection][2], quickMenuBox[currentQuickMenuSelection][3]}, RGB565_Red);
 
-    // draw the IN gain graphics here...
-    if (currentQuickMenuSelection == 0){
-      int y;
-      y = map(myLineInLevel, 0, 15, 60, 2);
-      im.fillRect({5, (7 + y)}, {22, 5}, RGB565_Gray);
-      im.fillRect({6, (8 + y)}, {20, 3}, RGB565_Black);
-      im.fillRect({7, (9 + y)}, {18, 1}, RGB565_Cyan);
-    }
+    if (currentQuickMenuLevel == 0) {  // do this if we are on the main menu
 
-    // draw the OUT gain graphics here...
-    if (currentQuickMenuSelection == 10){
-      int y;
-      y = map(myLineOutLevel, 13, 31, 60, 2);
-      im.fillRect({296, (7 + y)}, {22, 5}, RGB565_Gray);
-      im.fillRect({297, (8 + y)}, {20, 3}, RGB565_Black);
-      im.fillRect({298, (9 + y)}, {18, 1}, RGB565_Cyan);
-    }
 
-    // update data from selected box!
-    if (c != 0)
-    {
-        fps = 0; // reset timer - we are working...
-
-      if (currentQuickMenuSelection == 0) {
-        myLineInLevel = myLineInLevel + c;
-        if (myLineInLevel > 15){
-          myLineInLevel = 15;
-        }
-        if (myLineInLevel < 0){
-          myLineInLevel = 0;
-        }
-        inputMixer.gain(0,mapf(myLineInLevel,0,15,0.0f, 1.0f));
-        inputMixer.gain(1,mapf(myLineInLevel,0,15,0.0f, 1.0f));
+      currentQuickMenuSelection = currentQuickMenuSelection + b;
+      if (currentQuickMenuSelection > QUICK_MENU_SELECTIONS)
+      {
+          currentQuickMenuSelection = 0;
       }
-        
+      if (currentQuickMenuSelection < 0)
+      {
+          currentQuickMenuSelection = QUICK_MENU_SELECTIONS;
+      }
 
-      if (currentQuickMenuSelection < 10 and currentQuickMenuSelection > 1){
-            ydBLevel[currentQuickMenuSelection-1] = ydBLevel[currentQuickMenuSelection-1] + c;
-            if (ydBLevel[currentQuickMenuSelection-1] > 12)
-            {
-                ydBLevel[currentQuickMenuSelection-1] = 12;
-            }
-            if (ydBLevel[currentQuickMenuSelection-1] < -12)
-            {
-                ydBLevel[currentQuickMenuSelection-1] = -12;
-            }
-            if(equalizerFlag == 1)  {
-              EqGainSetL();
-            }
+      im.drawRect({quickMenuBox[currentQuickMenuSelection][0], quickMenuBox[currentQuickMenuSelection][1]}, {quickMenuBox[currentQuickMenuSelection][2], quickMenuBox[currentQuickMenuSelection][3]}, RGB565_Red);
+
+
+      // update data from selected box!
+      if (c != 0)
+      {
+          fps = 0; // reset timer - we are working...
+
+        if (currentQuickMenuSelection == 0) {
+          currentMixerMenuSelection = 0;
+          currentQuickMenuLevel = 1;    /// activate the mixer menu
         }
+          
 
-
-        if (currentQuickMenuSelection == 9)
-        {
-            myPRCratio = 30.0;                   // for testing
-            myPRCthreshold = myPRCthreshold + c; // , -110, 0,
-            if (myPRCthreshold > 0)
-            {
-                myPRCthreshold = 0;
-            }
-            if (myPRCthreshold < -110)
-            {
-                myPRCthreshold = -110;
-            }
-            Serial.print(myPRCthreshold);
-        }
-
-        if (currentQuickMenuSelection == 10) {
-          myLineOutLevel = myLineOutLevel + c;
-          if (myLineOutLevel > 31){
-            myLineOutLevel = 31;
+        if (currentQuickMenuSelection < 10 and currentQuickMenuSelection > 0){
+              ydBLevel[currentQuickMenuSelection-1] = ydBLevel[currentQuickMenuSelection-1] + c;
+              if (ydBLevel[currentQuickMenuSelection-1] > 12)
+              {
+                  ydBLevel[currentQuickMenuSelection-1] = 12;
+              }
+              if (ydBLevel[currentQuickMenuSelection-1] < -12)
+              {
+                  ydBLevel[currentQuickMenuSelection-1] = -12;
+              }
+              if(equalizerFlag == 1)  {
+                EqGainSetL();
+              }
           }
-          if (myLineOutLevel < 13){
-            myLineOutLevel = 13;
+
+
+          if (currentQuickMenuSelection == 9)
+          {
+              myPRCratio = 30.0;                   // for testing
+              myPRCthreshold = myPRCthreshold + c; // , -110, 0,
+              if (myPRCthreshold > 0)
+              {
+                  myPRCthreshold = 0;
+              }
+              if (myPRCthreshold < -110)
+              {
+                  myPRCthreshold = -110;
+              }
+              Serial.print(myPRCthreshold);
           }
-        //  Need to re-think this...  not sure best place for output 
-        // probably not the audioOutput block on the Teensy before the i2c back to the audio board...
-        // audioOutput.setGain(mapf(myLineOutLevel,13,31,0.0f, 1.0f));
-        audioShield.volume(mapf(myLineOutLevel,13,31,0.0f, 0.8f));  //Headphones and constrained to 0.8f max recommended before distortion.
-        audioShield.lineOutLevel(myLineOutLevel); //Line Out
-        }
+
+          if (currentQuickMenuSelection == 10) {  // activate mixer menu here too
+            currentQuickMenuSelection = 0;
+            currentQuickMenuLevel = 1;
+          }
 
 
-        if (currentQuickMenuSelection == 11)
-        {
-            myInput = myInput + c;
-            if (myInput > 1)
-            {
-                myInput = 0;
-            }
-            if (myInput < 0)
-            {
-                myInput = 1;
-            }
-        }
+          if (currentQuickMenuSelection == 11)
+          {
+              myInput = myInput + c;
+              if (myInput > 1)
+              {
+                  myInput = 0;
+              }
+              if (myInput < 0)
+              {
+                  myInput = 1;
+              }
+          }
 
-        if (currentQuickMenuSelection == 12)
-        {
-            if (c != 0)
-            {
-                if (noiseGateFlag == 1)
-                {
-                    ngOFF();
-                }
-                else
-                {
-                    ngON();
-                }
-            }
-        }
+          if (currentQuickMenuSelection == 12)
+          {
+              if (c != 0)
+              {
+                  if (noiseGateFlag == 1)
+                  {
+                      ngOFF();
+                  }
+                  else
+                  {
+                      ngON();
+                  }
+              }
+          }
 
-        if (currentQuickMenuSelection == 13)
-        {
-            if (c != 0)
-            {
-                if (procFlag == 1)
-                {
-                    procOFF();
-                }
-                else
-                {
-                    procON();
-                }
-            }
-        }
+          if (currentQuickMenuSelection == 13)
+          {
+              if (c != 0)
+              {
+                  if (procFlag == 1)
+                  {
+                      procOFF();
+                  }
+                  else
+                  {
+                      procON();
+                  }
+              }
+          }
 
-        if (currentQuickMenuSelection == 14)
-        {
-            if (c != 0)
-            {
-                if (limFlag == 1)
-                {
-                    limOFF();
-                }
-                else
-                {
-                    limON();
-                }
-            }
-        }
+          if (currentQuickMenuSelection == 14)
+          {
+              if (c != 0)
+              {
+                  if (limFlag == 1)
+                  {
+                      limOFF();
+                  }
+                  else
+                  {
+                      limON();
+                  }
+              }
+          }
 
-        if (currentQuickMenuSelection == 15)
-        {
-            if (c != 0)
-            {
-                if (equalizerFlag == 1)
-                {
-                    eqOFF();
-                }
-                else
-                {
-                    eqON();
-                }
-            }
-        }
+          if (currentQuickMenuSelection == 15)
+          {
+              if (c != 0)
+              {
+                  if (equalizerFlag == 1)
+                  {
+                      eqOFF();
+                  }
+                  else
+                  {
+                      eqON();
+                  }
+              }
+          }
 
-        if (currentQuickMenuSelection == 16)
-        {
-            if (c != 0)
-            {
-                if (AVCFlag == 1)
-                {
-                    AVCoff();
-                }
-                else
-                {
-                    AVCon();
-                }
-            }
-        }
+          if (currentQuickMenuSelection == 16)
+          {
+              if (c != 0)
+              {
+                  if (AVCFlag == 1)
+                  {
+                      AVCoff();
+                  }
+                  else
+                  {
+                      AVCon();
+                  }
+              }
+          }
 
-        if (currentQuickMenuSelection == 17)
-        {
-            if (c != 0)
-            {
-                if (amgFlag == 1)
-                {
-                    amgOFF();
-                }
-                else
-                {
-                    amgON();
-                }
-            }
-        }
+          if (currentQuickMenuSelection == 17)
+          {
+              if (c != 0)
+              {
+                  if (amgFlag == 1)
+                  {
+                      amgOFF();
+                  }
+                  else
+                  {
+                      amgON();
+                  }
+              }
+          }
 
-        if (currentQuickMenuSelection == 18)
-        {
-            if (c != 0)
-            {
-                if (mupFlag == 1)
-                {
-                    mupOFF();
-                }
-                else
-                {
-                    mupON();
-                }
-            }
-        }
+          if (currentQuickMenuSelection == 18)
+          {
+              if (c != 0)
+              {
+                  if (mupFlag == 1)
+                  {
+                      mupOFF();
+                  }
+                  else
+                  {
+                      mupON();
+                  }
+              }
+          }
+      }
     }
+    if (currentQuickMenuLevel == 1 and currentQuickMenuSelection == 0){
+      drawMixerMenu(b,c);
+    }    
 }
+
+
+void drawMixerMenu(int b, int c) {
+
+  if (c != 0){  // keep the menu active while using
+    fps=0;
+  }
+
+  im.blit(Mixer, 28,4,1.0);
+  
+  currentMixerMenuSelection = currentMixerMenuSelection + b;
+  if (currentMixerMenuSelection > MIXER_MENU_SELECTIONS)
+  {
+      currentMixerMenuSelection = 0;
+  }
+  if (currentMixerMenuSelection < 0)
+  {
+      currentMixerMenuSelection = MIXER_MENU_SELECTIONS;
+  }
+
+  im.drawRect({mixerMenuBox[currentMixerMenuSelection][0], mixerMenuBox[currentMixerMenuSelection][1]}, {mixerMenuBox[currentMixerMenuSelection][2], mixerMenuBox[currentMixerMenuSelection][3]}, RGB565_Red);
+
+
+  // deal with settings....
+
+  if ( c != 0) {
+    if (currentMixerMenuSelection == 0) {    // Mic IN Gain
+      micGainSet = micGainSet + c;
+      if (micGainSet < 0) { 
+        micGainSet = 0;
+      }  
+      if (micGainSet > 63) { 
+        micGainSet = 63;
+      } 
+      audioShield.micGain(micGainSet);
+    }
+
+
+    if (currentMixerMenuSelection == 1) {    // Line IN Gain
+      myLineInLevel = myLineInLevel + c;
+      if (myLineInLevel < 0) { 
+        myLineInLevel = 0;
+      }  
+      if (myLineInLevel > 15) { 
+        myLineInLevel = 15;
+      } 
+      audioShield.lineInLevel(myLineInLevel);
+    }
+
+
+    if (currentMixerMenuSelection == 2) {    // USB/INPUT fader
+      myUSBInputFader = myUSBInputFader + (c * .05);  // .05 (20 step resolution)
+      if (myUSBInputFader < 0) { 
+        myUSBInputFader = 0;
+      }  
+      if (myUSBInputFader > 1) { 
+        myUSBInputFader = 1;
+      } 
+      float usbLevel = myUSBInputFader;
+      float inputLevel = 1 - usbLevel;
+      // set usb/input levels here
+    }
+
+
+    if (currentMixerMenuSelection == 3) {    // HeadPhone volume
+      myDACVolume = myDACVolume + (c * .05);  // 20 step resolution
+      if (myDACVolume < 0) { 
+        myDACVolume = 0;
+      }  
+      if (myDACVolume > 1) { 
+        myDACVolume = 1;
+      } 
+      audioShield.dacVolume(myDACVolume);
+    }
+
+
+    if (currentMixerMenuSelection == 4) {    // DAC Volume
+      myVolume = myVolume + (c * .05);  // 20 step resolution
+      if (myVolume < 0) { 
+        myVolume = 0;
+      }  
+      if (myVolume > 1) { 
+        myVolume = 1;
+      } 
+      audioShield.volume(myVolume);
+    }
+
+    if (currentMixerMenuSelection == 5) {    // lineOUtLevel
+      myLineOutLevel = myLineOutLevel + (c);  
+      if (myLineOutLevel < 13) { 
+        myLineOutLevel = 13;
+      }  
+      if (myLineOutLevel > 31) { 
+        myLineOutLevel = 31;
+      } 
+      audioShield.lineOutLevel(myLineOutLevel);
+    }
+
+
+  }
+
+  
+  // Draw sliders
+  int y;
+  y = map(micGainSet, 0, 63, 0, 45);
+  im.blit(EQSlider, 38, 65 - y, 1.0);   // Mic Gain
+
+  y = map(myLineInLevel, 0, 15, 0, 45);
+  im.blit(EQSlider, 63, 65 - y, 1.0);   // Line In Gain
+
+  y = map(myUSBInputFader, 0, 1, 0, 45);
+  im.blit(EQSlider, 99, 65 - y, 1.0);   // USB/Level Fader
+
+  y = map(myDACVolume, 0, 1, 0, 45);
+  im.blit(EQSlider, 137, 65 - y, 1.0);   // DAC Volume
+
+  y = map(myVolume, 0, 1, 0, 45);
+  im.blit(EQSlider, 161, 65 - y, 1.0);   // Headphone Volume
+
+  y = map(myLineOutLevel, 13, 31, 0, 45);
+  im.blit(EQSlider, 185, 65 - y, 1.0);   // myLineOutLevel Volume
+
+}
+
+
+
 
 // Floating point map function declatration
 double mapf(double x, double in_min, double in_max, double out_min, double out_max)
@@ -1073,6 +1191,9 @@ void loop()
     if (b != 0 or fps < 5000)
     {
         drawQuickMenu(b, c);
+    }
+    else {
+      currentQuickMenuLevel = 0;
     }
 
     display.update(fb);
@@ -1348,17 +1469,6 @@ void drawVUmeters()
             }
         }
     }
-
-
-    //Draw current gain settings on VU meters
-    // draw the IN gain graphics here...
-    int y;
-    y = map(myLineInLevel, 0, 15, 60, 2);
-    im.drawCircle({15, (9 + y)}, 1, RGB565_Cyan);
-
-    // draw the OUT gain graphics here...
-    y = map(myLineOutLevel, 13, 31, 60, 2);
-    im.drawCircle({305, (9 + y)}, 1, RGB565_Cyan);
 }
 
 void drawEQSliders()
