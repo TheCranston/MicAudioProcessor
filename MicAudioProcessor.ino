@@ -1079,7 +1079,7 @@ void drawMixerMenu(int b, int c) {
   y = map(myVolume, 0, 1, 0, 45);
   im.blit(EQSlider, 161, 65 - y, 1.0);   // Headphone Volume
 
-  y = map(myLineOutLevel, 13, 31, 0, 45);
+  y = map(myLineOutLevel, 31, 13, 0, 45);
   im.blit(EQSlider, 185, 65 - y, 1.0);   // myLineOutLevel Volume
 
 }
