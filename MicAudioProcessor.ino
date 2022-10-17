@@ -569,15 +569,14 @@ void drawQuickMenu(int b, int c) {
         if (myPRCthreshold < -110) {
           myPRCthreshold = -110;
         }
-        Serial.print(myPRCthreshold);
       }
 
       if (currentQuickMenuSelection == 10) {  // activate mixer menu here too
         currentQuickMenuSelection = 0;
         currentQuickMenuLevel = 1;
+        //audioShield.volume(mapf(myLineOutLevel, 13, 31, 0.0f, 0.8f));  //Headphones and constrained to 0.8f max recommended before distortion.
+        //audioShield.lineOutLevel(myLineOutLevel);                      //Line Out
       }
-      audioShield.volume(mapf(myLineOutLevel, 13, 31, 0.0f, 0.8f));  //Headphones and constrained to 0.8f max recommended before distortion.
-      audioShield.lineOutLevel(myLineOutLevel);                      //Line Out
     }
 
 
@@ -885,17 +884,9 @@ void loop() {
   yield();
 
   if (spectrumFlag == -1) {  // turn this off
-    ////Serial.println("Loop2");
-
     b = clickEncoder.getButton();
     if (b == ClickEncoder::Clicked) {
-      // Serial.println("Clicked");
       spectrumFlag = 0;
-      //      display.fillScreen(ILI9341_BLACK);
-      // display.display();
-      //      nav.refresh();
-      // Serial.println();
-      // Serial.println("Exiting Spectrum");
     }
   }
 }
@@ -1060,7 +1051,6 @@ void drawVUmeters() {
     //peak = peakVal > 0.00065234f ? 20.0f*log10f(peakVal) : -65.0;  // Convert to dB and clip lower bounds just above noise floor
     peak = peakVal > 0.00065234f ? peakVal : 0.00065234f;
     peakPreM = mapf(peak, 0.0, 1.0, 1.0, 33.0);
-    // Serial.print(peak, 8); Serial.print(" "); Serial.println(peakPreM);
     for (int i = 0; i < maxHeight; i++) {
       if (i < int(peakPreM)) {
         im.blit(LITGREENVU, posXin, posYin - (i * 2), 1.0);
@@ -1121,8 +1111,7 @@ void drawFFT() {
       } else {
         n = n * 2;  // edge case of first bin..
       }
-      mVal = map(constrain(int(n), -80, 0), -80, 0, 0, 36);
-      //Serial.print(n,2); Serial.print(" "); Serial.println(mVal);
+      mVal = map(constrain(int(n), -80, 0), -80, 0, 0, 36); // check into the constrain and if the int() is actaully ok...
       int x = posX + i * barWidth;
 
       if (mVal >= barPeak[i]) {
