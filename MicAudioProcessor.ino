@@ -1,3 +1,5 @@
+#define VERSION "0.8.0"
+
 #include "OpenAudio_ArduinoLibrary.h"  // https://github.com/chipaudette/OpenAudio_ArduinoLibrary
 #include "AudioStream_F32.h"
 #include "USB_Audio_F32.h"        // But why not?!?!?
@@ -114,6 +116,7 @@ AudioConnection_F32 patchCord10(EQ_mix, Dynamics);
 AudioConnection_F32 patchCord11(Dynamics, fftValues);
 AudioConnection_F32 patchCord12(Dynamics, 0, audioOutput, 0);
 AudioConnection_F32 patchCord13(Dynamics, peakPost);
+
 
 // DEFAULT FLAGS
 #define AVCFLAG 0;
@@ -574,8 +577,6 @@ void drawQuickMenu(int b, int c) {
       if (currentQuickMenuSelection == 10) {  // activate mixer menu here too
         currentQuickMenuSelection = 0;
         currentQuickMenuLevel = 1;
-        //audioShield.volume(mapf(myLineOutLevel, 13, 31, 0.0f, 0.8f));  //Headphones and constrained to 0.8f max recommended before distortion.
-        //audioShield.lineOutLevel(myLineOutLevel);                      //Line Out
       }
     }
 
@@ -796,10 +797,11 @@ void setup(void) {
   Serial.begin(115200);
   delay(500);
   Serial.println("Setup starting...");
+  Serial.print("Version: ");
+  Serial.println(VERSION);
 
   // display
-  while (!display.begin(SPI_SPEED))
-    ;
+  while (!display.begin(SPI_SPEED));
 
   display.setScroll(0);
   display.setRotation(1);
@@ -852,13 +854,6 @@ void setup(void) {
   audioShield.unmuteHeadphone();
   audioShield.unmuteLineout();
   Serial.println("Outputs unmuted");
-
-  Serial.print("Audio Memory in use:");
-  Serial.println(AudioMemoryUsage());
-  Serial.print("CPU: Max Percent Usage: ");
-  Serial.println(AudioProcessorUsageMax());
-  Serial.print("   Max Float 32 Memory: ");
-  Serial.println(AudioMemoryUsageMax_F32());
 }
 
 void loop() {
@@ -882,13 +877,6 @@ void loop() {
 
   display.update(fb);
   yield();
-
-  if (spectrumFlag == -1) {  // turn this off
-    b = clickEncoder.getButton();
-    if (b == ClickEncoder::Clicked) {
-      spectrumFlag = 0;
-    }
-  }
 }
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
