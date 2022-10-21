@@ -40,6 +40,14 @@
 #include "A-MuOn.h"
 #include "MkUpOn.h"
 #include "Mixer.h"
+#include "Gate2.h"
+#include "GateOn.h"
+#include "ThresholdOn.h"
+#include "ReleaseOn.h"
+#include "AttackOn.h"
+#include "HysterisisOn.h"
+
+
 
 #include <TimerOne.h>
 #include <ClickEncoder.h>
@@ -192,6 +200,7 @@ int quickMenuBox[21][4] = {
 
 const int QUICK_MENU_SELECTIONS = 18;
 
+// Mixer Menu
 int currentMixerMenuSelection = 0;
 int mixerMenuBox[6][4] = {
   { 33, 16, 24, 68 },   // IN Gain
@@ -202,6 +211,18 @@ int mixerMenuBox[6][4] = {
   { 180, 15, 24, 68 }   // EQ 4
 };
 const int MIXER_MENU_SELECTIONS = 5;
+
+// Gate Menu
+int currentGateMenuSelection = 0;
+const int GATE_MENU_SELECTIONS = 4;
+int gateMenuBox[6][4] = {
+  { 32,  72, 16, 14 },   // Gate ON
+  { 53,  72, 30, 14 },   // Threshold
+  { 90,  72, 30, 14 },   // Attack 
+  { 129, 72, 30, 14 },   // Release 
+  { 170, 72, 30, 14 }    // Hysterisis
+};
+
 
 elapsedMillis fps;
 
@@ -592,11 +613,13 @@ void drawQuickMenu(int b, int c) {
 
     if (currentQuickMenuSelection == 12) {
       if (c != 0) {
-        if (noiseGateFlag == 1) {
-          ngOFF();
-        } else {
-          ngON();
-        }
+        currentMixerMenuSelection = 12;
+        currentQuickMenuLevel = 1;  /// activate the gate menu
+        //if (noiseGateFlag == 1) {
+        //  ngOFF();
+        //} else {
+        //  ngON();
+        //}
       }
     }
 
@@ -663,6 +686,125 @@ void drawQuickMenu(int b, int c) {
   if (currentQuickMenuLevel == 1 and currentQuickMenuSelection == 0) {
     drawMixerMenu(b, c);
   }
+
+  if (currentQuickMenuLevel == 1 and currentQuickMenuSelection == 12) {
+    drawGateMenu(b, c);
+  }
+
+}
+
+void drawGateMenu(int b, int c) {
+  if (c != 0) {  // keep the menu active while using
+    fps = 0;
+  }
+  im.blit(Gate2, 28, 4, 1.0);
+
+  currentGateMenuSelection = currentGateMenuSelection + b;
+  if (currentGateMenuSelection > GATE_MENU_SELECTIONS) {
+    currentGateMenuSelection = 0;
+  }
+  if (currentGateMenuSelection < 0) {
+    currentGateMenuSelection = GATE_MENU_SELECTIONS;
+  }
+
+  im.drawRect({ gateMenuBox[currentGateMenuSelection][0], gateMenuBox[currentGateMenuSelection][1] }, { gateMenuBox[currentGateMenuSelection][2], gateMenuBox[currentGateMenuSelection][3] }, RGB565_Red);
+
+
+  // Draw power on light...
+  if (noiseGateFlag == 1){
+    im.blit(GateOn, 35,75,1.0);
+  }
+
+
+  // Draw threshold and hysterisis lines...
+  int xThreshStart = 35;
+  int xThreshEnd = 204;
+  int y = map(myNGthreshold, -100, 50, 69, 10);
+  int h = myNGhysterisis;
+  if (y+h < 69){
+    im.drawLine({xThreshStart,y+h}, {xThreshEnd, y+h},RGB565_Yellow );  // Draw the Hysterisis line first (Thresh will cover if it's "OFF")
+  }
+  im.drawLine({xThreshStart,y}, {xThreshEnd, y},RGB565_White );
+
+  // Draw attack line...
+  int xAttackEnd = 99;
+  int yAttackStart = 68;
+  int yAttackEnd = 30;
+  int x = map(myNGattackTime, 0, 10, 0, -60);  // maybe mapf?
+  im.drawLine({xAttackEnd + x, yAttackStart},{xAttackEnd, yAttackEnd}, RGB565_Red);
+  im.drawLine({35, yAttackStart}, {xAttackEnd + x, yAttackStart}, RGB565_Red);
+
+  // Draw release line...
+  int xReleaseEnd = 133;
+  int yReleaseStart = 68;
+  int yReleaseEnd = 30;
+  x = map(myNGreleaseTime, 0, 10, 0, 60);  // maybe mapf?
+  im.drawLine({xReleaseEnd + x, yReleaseStart},{xReleaseEnd, yReleaseEnd}, RGB565_Red);
+  im.drawLine({xAttackEnd, yAttackEnd}, {xReleaseEnd, yReleaseEnd}, RGB565_Red);
+  im.drawLine({xReleaseEnd + x, yReleaseStart}, {xThreshEnd, yReleaseStart}, RGB565_Red);
+
+
+  // Deal with the settings
+  if (c !=0 ){
+    if (currentGateMenuSelection == 0){       // Turn on/off gate
+      if (noiseGateFlag == 1) {
+        ngOFF();
+      } else {
+        ngON();
+      }
+    }    
+
+    if (currentGateMenuSelection == 1){      // Adjust Threshold -110 to 50
+      myNGthreshold = myNGthreshold + c;
+      if (myNGthreshold > 50){
+        myNGthreshold = 50;
+      }
+      if (myNGthreshold < -110) {
+        myNGthreshold = -110;
+      }
+
+    }
+
+    if (currentGateMenuSelection == 2){     // Adjust the Attack 1 to 10 step .001
+      myNGattackTime = myNGattackTime + (c * .1);
+      if (myNGattackTime > 10){
+        myNGattackTime = 10;
+      }
+      if (myNGattackTime < 0){
+        myNGattackTime = 0;
+      }
+    }
+
+    if (currentGateMenuSelection == 3){     // Adjust the Release 1 to 10 step .1
+      myNGreleaseTime = myNGreleaseTime + (c * .1);
+      if (myNGreleaseTime > 10){
+        myNGreleaseTime = 10;
+      }
+      if (myNGreleaseTime < 0){
+        myNGreleaseTime = 0;
+      }
+    
+    }
+
+
+    if (currentGateMenuSelection == 4){     // Adjust the Hysterisis 1 to 12 step .1
+      myNGhysterisis = myNGhysterisis + (c * .1);
+      if (myNGhysterisis > 12){
+        myNGhysterisis = 12;
+      }
+      if (myNGhysterisis < 0){
+        myNGhysterisis = 0;
+      }
+    
+    }
+
+    // Update the settings
+    Dynamics.gate(myNGthreshold, myNGattackTime, myNGreleaseTime, myNGhysterisis, 0.0f);  // account for F32 gate attenuation
+  }
+
+
+
+
 }
 
 
@@ -688,7 +830,7 @@ void drawMixerMenu(int b, int c) {
   // deal with settings....
 
   if (c != 0) {
-    if (currentMixerMenuSelection == 0) {  // Mic IN Gain
+    if (currentMixerMenuSelection == 0) {  // Mic IIN GainN Gain
       micGainSet = micGainSet + c;
       if (micGainSet < 0) {
         micGainSet = 0;
@@ -792,7 +934,7 @@ double mapf(double x, double in_min, double in_max, double out_min, double out_m
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 void setup(void) {
-
+  // deleteFile();  - this fixed my line in audio issue
   Serial.begin(115200);
   delay(500);
   Serial.println("Setup starting...");
