@@ -453,7 +453,7 @@ bool AVCoff() {
 }
 
 bool ngON() {
-  Dynamics.gate(myNGthreshold, myNGattackTime, myNGreleaseTime, myNGhysterisis, 0.0f);  // account for F32 gate attenuation
+  Dynamics.gate(myNGthreshold, myNGattackTime, myNGreleaseTime, myNGhysterisis, -0.001f);  // account for F32 gate attenuation below EFFECT_DYNAMICS_MAX_DB
   noiseGateFlag = 1;
   return true;
 }
