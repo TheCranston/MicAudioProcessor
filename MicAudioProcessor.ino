@@ -453,7 +453,7 @@ bool AVCoff() {
 }
 
 bool ngON() {
-  Dynamics.gate(myNGthreshold, myNGattackTime, myNGreleaseTime, myNGhysterisis, -0.001f);  // account for F32 gate attenuation below EFFECT_DYNAMICS_MAX_DB
+  Dynamics.gate(myNGthreshold, myNGattackTime, myNGreleaseTime, myNGhysterisis, EFFECT_DYNAMICS_MIN_DB);  // account for F32 gate attenuation below EFFECT_DYNAMICS_MAX_DB
   noiseGateFlag = 1;
   return true;
 }
@@ -754,15 +754,16 @@ void drawGateMenu(int b, int c) {
       }
     }    
 
-    if (currentGateMenuSelection == 1){      // Adjust Threshold -110 to 50
+    if (currentGateMenuSelection == 1){      // Adjust Threshold -96 to 0 dBFS
       myNGthreshold = myNGthreshold + c;
-      if (myNGthreshold > 50){
-        myNGthreshold = 50;
+      if (myNGthreshold > EFFECT_DYNAMICS_MAX_DB){
+        myNGthreshold = EFFECT_DYNAMICS_MAX_DB;
       }
-      if (myNGthreshold < -110) {
-        myNGthreshold = -110;
+      if (myNGthreshold < EFFECT_DYNAMICS_MIN_DB) {
+        myNGthreshold = EFFECT_DYNAMICS_MIN_DB;
       }
-
+      // Update the settings
+      Dynamics.gate(myNGthreshold, myNGattackTime, myNGreleaseTime, myNGhysterisis, EFFECT_DYNAMICS_MIN_DB);  // account for F32 gate attenuation
     }
 
     if (currentGateMenuSelection == 2){     // Adjust the Attack 1 to 10 step .001
@@ -773,6 +774,8 @@ void drawGateMenu(int b, int c) {
       if (myNGattackTime < 0){
         myNGattackTime = 0;
       }
+      // Update the settings
+      Dynamics.gate(myNGthreshold, myNGattackTime, myNGreleaseTime, myNGhysterisis, EFFECT_DYNAMICS_MIN_DB);  // account for F32 gate attenuation
     }
 
     if (currentGateMenuSelection == 3){     // Adjust the Release 1 to 10 step .1
@@ -783,7 +786,8 @@ void drawGateMenu(int b, int c) {
       if (myNGreleaseTime < 0){
         myNGreleaseTime = 0;
       }
-    
+      // Update the settings
+      Dynamics.gate(myNGthreshold, myNGattackTime, myNGreleaseTime, myNGhysterisis, EFFECT_DYNAMICS_MIN_DB);  // account for F32 gate attenuation
     }
 
 
@@ -795,16 +799,10 @@ void drawGateMenu(int b, int c) {
       if (myNGhysterisis < 0){
         myNGhysterisis = 0;
       }
-    
+       // Update the settings
+      Dynamics.gate(myNGthreshold, myNGattackTime, myNGreleaseTime, myNGhysterisis, EFFECT_DYNAMICS_MIN_DB);  // account for F32 gate attenuation
     }
-
-    // Update the settings
-    Dynamics.gate(myNGthreshold, myNGattackTime, myNGreleaseTime, myNGhysterisis, 0.0f);  // account for F32 gate attenuation
   }
-
-
-
-
 }
 
 
