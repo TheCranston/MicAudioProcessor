@@ -156,10 +156,10 @@ AudioConnection_F32 patchCord13(Dynamics, peakPost);
 
 // DEFAULT Compressor PARAMETERS
 #define PROCFLAG 0;
-#define MYPRCTHRESHOLD -30.0f;
+#define MYPRCTHRESHOLD -40.0f;
 #define MYPRCATTACK 0.03f;
 #define MYPRCRELEASE 0.5f;
-#define MYPRCRATIO 8.0f;
+#define MYPRCRATIO 35.0f;
 #define MYPRCKNEEWIDTH 6.0f;
 
 // DEFAULT LIMITER PARAMETERS
@@ -990,8 +990,8 @@ void setup(void) {
   else
     Serial.println("Equalizer initialized successfully.");
 
-  readFromFile();  //  Check for and restore last save state if present
-  Serial.println("resotred last config state");
+  //readFromFile();  //  Check for and restore last save state if present
+  //Serial.println("resotred last config state");
   audioShield.unmuteHeadphone();
   audioShield.unmuteLineout();
   Serial.println("Outputs unmuted");
