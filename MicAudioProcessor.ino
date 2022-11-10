@@ -151,7 +151,7 @@ AudioConnection_F32 patchCord13(Dynamics, peakPost);
 #define MYNGHYSTERISIS 6.0f;
 #define MYNGHOLDTIME 0.0003f;
 
-// DEFAULT PROCESSOR PARAMETERS
+// DEFAULT Compressor PARAMETERS
 #define PROCFLAG 0;
 #define MYPRCTHRESHOLD -30.0f;
 #define MYPRCATTACK 0.03f;
@@ -471,7 +471,7 @@ bool procON() {
 }
 
 bool procOFF() {
-  Dynamics.compression(MAX_DB, myPRCattack, myPRCrelease, myPRCratio, myPRCkneeWidth);
+  Dynamics.compression(EFFECT_DYNAMICS_MAX_DB, myPRCattack, myPRCrelease, myPRCratio, myPRCkneeWidth);
   procFlag = 0;
   return true;
 }
@@ -604,11 +604,12 @@ void drawQuickMenu(int b, int c) {
     if (currentQuickMenuSelection == 11) {
       myInput = myInput + c;
       if (myInput > 1) {
-        myInput = 0;
+        myInput = AUDIO_INPUT_LINEIN;
       }
       if (myInput < 0) {
-        myInput = 1;
+        myInput = AUDIO_INPUT_MIC;
       }
+      audioShield.inputSelect(myInput);
     }
 
     if (currentQuickMenuSelection == 12) {
@@ -938,8 +939,7 @@ void setup(void) {
   Serial.println("Setup starting...");
 
   // display
-  while (!display.begin(SPI_SPEED))
-    ;
+  while (!display.begin(SPI_SPEED));
 
   display.setScroll(0);
   display.setRotation(1);
