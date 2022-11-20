@@ -13,7 +13,7 @@
 #define MAX_DB 0.0f
 #endif
 
-#include <Audio.h>
+#include "Audio.h"
 #include <EEPROM.h>  // store the config here for power persistance
 #include <Wire.h>
 #include <SPI.h>
@@ -990,8 +990,9 @@ void setup(void) {
   else
     Serial.println("Equalizer initialized successfully.");
 
+  SetAudioShield(); // Start Sane
   //readFromFile();  //  Check for and restore last save state if present
-  //Serial.println("resotred last config state");
+  //Serial.println("Audio config state set");
   audioShield.unmuteHeadphone();
   audioShield.unmuteLineout();
   Serial.println("Outputs unmuted");
