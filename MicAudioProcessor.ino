@@ -48,6 +48,7 @@
 #include "HysterisisOn.h"
 #include "Comp.h"
 #include "CompOn.h"
+#include "Limiter.h"
 
 
 
@@ -175,6 +176,16 @@ AudioConnection_F32 patchCord13(Dynamics, peakPost);
 #define MUPFLAG 0;
 #define MYMUPGAIN 0.0f;
 
+// Ben, this prob doesn't belong here
+// It's just a place holder for the MicBiasVoltage setting
+float micBiasVoltage = 0.0;
+
+// Popups
+#define POP_UP_TIMEOUT 50;
+char popUpMessage[30];
+bool popUpActive = false;
+int popUpTimeOut = 0;
+
 // Quick Menu
 int eqQMOffset = 40;
 int currentQuickMenuSelection = 0;
@@ -207,6 +218,7 @@ const int QUICK_MENU_SELECTIONS = 20;
 
 // Mixer Menu
 int currentMixerMenuSelection = 99;
+const int MIXER_MENU_SELECTIONS = 5;
 int mixerMenuBox[6][4] = {
   { 33, 16, 24, 68 },   // IN Gain
   { 58, 16, 24, 68 },   // EQ 1
@@ -215,7 +227,7 @@ int mixerMenuBox[6][4] = {
   { 155, 15, 26, 68 },  // EQ 3
   { 180, 15, 24, 68 }   // EQ 4
 };
-const int MIXER_MENU_SELECTIONS = 5;
+
 
 // Gate Menu
 int currentGateMenuSelection = 0;
@@ -227,6 +239,17 @@ int gateMenuBox[6][4] = {
   { 129, 72, 30, 14 },   // Release 
   { 170, 72, 30, 14 }    // Hysterisis
 };
+
+// Limiter Menu
+int currentLimiterMenuSelection = 0;
+const int LIMIT_MENU_SELECTIONS = 3;
+int limiterMenuBox[4][4] = {
+  {  6,  69, 16, 14 },   // Limit On
+  { 13,  15, 30, 14 },   // Attack
+  { 57,  15, 30, 14 },   // Release 
+  { 57,  49, 30, 14 },   // Threshold
+};
+
 
 // Compressor Menu
 int compPre = 0; // persistent VU display 
@@ -241,6 +264,16 @@ int compMenuBox[6][4] = {
   { 84,  54, 33, 15 }    // Knee
 };
 
+//Settings Menu
+int currentSettingsMenuSelection = 0;
+const int SETTINGS_MENU_SELECTIONS = 4;
+int settingsMenuBox[6][4] = {
+  { 60,  47, 200, 17 },   // Mic Bias Volt
+  { 60,  67, 200, 17 },   // Save current
+  { 60,  87, 200, 17 },   // Restore Settings
+  { 60, 107, 200, 17 },   // Erase Saved
+  { 60, 127, 200, 17 },   // Exit
+};
 
 
 elapsedMillis fps;
@@ -290,6 +323,8 @@ struct ConfigSaveSet {
 
 int b;
 int c;
+ClickEncoder::Button bButton;
+ClickEncoder:: Button cButton;
 int maxVal = 0;
 int spectrumFlag = 0;
 
@@ -561,6 +596,10 @@ void drawQuickMenu(int b, int c) {
     fps = 0;  // only reset timer if encoder isn't turning.
   }
 
+  if (b == 999) {
+    currentQuickMenuLevel = 1; // Activate Settings Menu
+    currentQuickMenuSelection = 999;
+  }
 
   if (currentQuickMenuLevel == 0) {  // do this if we are on the main menu
 
@@ -676,11 +715,8 @@ void drawQuickMenu(int b, int c) {
 
     if (currentQuickMenuSelection == 16) {
       if (c != 0) {
-        if (limFlag == 1) {
-          limOFF();
-        } else {
-          limON();
-        }
+        currentMixerMenuSelection = 16;
+        currentQuickMenuLevel =1; /// activate the limiter menu
       }
     }
 
@@ -737,7 +773,116 @@ void drawQuickMenu(int b, int c) {
     drawCompMenu(b, c);
   }
 
+  if (currentQuickMenuLevel == 1 and currentQuickMenuSelection == 16) {
+    drawLimiterMenu(b, c);
+  }
+
+  if (currentQuickMenuLevel == 1 and currentQuickMenuSelection == 999) {
+    drawSettingsMenu(b, c);
+  }
+
+
 }
+
+
+void drawLimiterMenu(int b, int c) {
+int limitXOffset = 70;  
+
+  if (c != 0) {  // keep the menu active while using
+    fps = 0;
+  }
+  im.blit(Limiter, (limitXOffset), 2, 1.0);
+
+  currentLimiterMenuSelection = currentLimiterMenuSelection + b;
+  if (currentLimiterMenuSelection > LIMIT_MENU_SELECTIONS) {
+    currentLimiterMenuSelection = 0;
+  }
+  if (currentLimiterMenuSelection < 0) {
+    currentLimiterMenuSelection = LIMIT_MENU_SELECTIONS;
+  }
+
+  im.drawRect({ limiterMenuBox[currentLimiterMenuSelection][0]+limitXOffset, limiterMenuBox[currentLimiterMenuSelection][1] }, { limiterMenuBox[currentLimiterMenuSelection][2], limiterMenuBox[currentLimiterMenuSelection][3] }, RGB565_Red);
+
+  // Draw power on light...
+  if (limFlag == 1){
+    im.blit(CompOn, (limitXOffset+8),71,1.0);
+  }
+
+  // Draw the display
+
+  int xStart = 173;
+  int xFinish = xStart+70;
+  int yZeroDB = 20;
+  int yThreshold = 0;
+  int xOn = xStart+20;
+  int xOff = xFinish-20;
+  int xAttack = 0;
+  int xRelease = 0;
+
+
+  yThreshold  = map(myLIMthreshold, -110, 50, 60, 20);
+  xAttack     = map(myLIMattack,       0,  1,  0, 10);
+  xRelease    = map(myLIMrelease,      0,  1,  0, 10);
+
+  im.drawLine({xStart,yZeroDB}, {xOn-xAttack, yZeroDB},RGB565_Red );
+  im.drawLine({xOn-xAttack,yZeroDB}, {xOn, yThreshold},RGB565_Red );
+  im.drawLine({xOn,yThreshold}, {xOff, yThreshold},RGB565_Red );
+  im.drawLine({xOff,yThreshold}, {xOff+xRelease, yZeroDB},RGB565_Red );
+  im.drawLine({xOff+xRelease,yZeroDB}, {xFinish, yZeroDB},RGB565_Red );
+
+  char buf[10];
+  sprintf(buf, "%.2f", myLIMattack);
+  im.drawText(buf, {limitXOffset+20, 37}, RGB565_White, font_tgx_OpenSans_8,true );
+  sprintf(buf, "%.2f", myLIMrelease);
+  im.drawText(buf, {limitXOffset+66, 37}, RGB565_White, font_tgx_OpenSans_8,true );
+  sprintf(buf, "%.1f", myLIMthreshold);  
+  im.drawText(buf, {limitXOffset+68, 71}, RGB565_White, font_tgx_OpenSans_8,true );
+
+
+  // Deal with the settings
+  if (c !=0 ){
+    if (currentLimiterMenuSelection == 0){       // Turn on/off limiter
+      if (limFlag == 1) {
+        limOFF();
+      } else {
+        limON();
+      }
+    }    
+
+    if (currentLimiterMenuSelection == 1) {     // Adjust Attack
+      myLIMattack= myLIMattack + (c * .01);
+      if (myLIMattack > 1){
+        myLIMattack = 1;
+      }
+      if (myLIMattack < 0){
+        myLIMattack = 0;
+      }
+    }
+
+    if (currentLimiterMenuSelection == 2) {     // Adjust Release
+      myLIMrelease = myLIMrelease + (c * .01);
+      if (myLIMrelease > 1){
+        myLIMrelease = 1;
+      }
+      if (myLIMrelease < 0){
+        myLIMrelease = 0;
+      }
+    }  
+
+    if (currentLimiterMenuSelection == 3) {     // Adjust Threshold
+      myLIMthreshold= myLIMthreshold + c;
+      if (myLIMthreshold > 50){
+        myLIMthreshold = 50;
+      }
+      if (myLIMthreshold < -110){
+        myLIMthreshold = -110;
+      }
+    } 
+
+  }
+
+}
+
 
 void drawCompMenu(int b, int c) {
   int compXOffset = 40;
@@ -1108,8 +1253,112 @@ void drawMixerMenu(int b, int c) {
   im.blit(EQSlider, 185+mixerXOffset, 65 - y, 1.0);  // myLineOutLevel Volume
 }
 
+//  Draw Settings Menu
+void drawSettingsMenu(int b, int c) {
+  int xSetMenu = 57;
+  int ySetMenu = 10;
+  int SetMenuWidth = 150;
+  int SetMenuHeight = 200;
+  int ySettingsOffset = ySetMenu + 30;
+  int itemY=0;
+  char buf[30];
+ 
+
+  // draw background 
+  im.drawRect({xSetMenu-1,ySetMenu-1}, { xSetMenu+SetMenuWidth+2, ySetMenu+SetMenuHeight+2}, RGB565_Gray);
+  im.fillRect({xSetMenu,ySetMenu }, { xSetMenu+SetMenuWidth, ySetMenu+SetMenuHeight}, RGB565_Black);
+  // draw heading
+  im.drawText("Settings", {xSetMenu+75, ySetMenu + 15}, RGB565_White, font_tgx_OpenSans_12,true );
+
+  // draw boxen
+    currentSettingsMenuSelection = currentSettingsMenuSelection + b;
+  if (currentSettingsMenuSelection > SETTINGS_MENU_SELECTIONS) {
+    currentSettingsMenuSelection = 0;
+  }
+  if (currentSettingsMenuSelection < 0) {
+    currentSettingsMenuSelection = SETTINGS_MENU_SELECTIONS;
+  }
+
+  im.drawRect({ settingsMenuBox[currentSettingsMenuSelection][0], settingsMenuBox[currentSettingsMenuSelection][1] }, { settingsMenuBox[currentSettingsMenuSelection][2], settingsMenuBox[currentSettingsMenuSelection][3] }, RGB565_Red);
 
 
+  // draw setting items
+  itemY = itemY + 20;
+  sprintf(buf, "%s", "Mic Bias Voltage");
+  im.drawText(buf, {xSetMenu+10, ySettingsOffset+itemY}, RGB565_White, font_tgx_OpenSans_12, true);
+
+  sprintf(buf, "%.2f", micBiasVoltage);
+  im.drawText(buf, {xSetMenu+170, ySettingsOffset+itemY}, RGB565_White, font_tgx_OpenSans_12,true );
+
+  itemY = itemY + 20;
+  sprintf(buf, "%s", "Save Current Settings");
+  im.drawText(buf, {xSetMenu+10, ySettingsOffset+itemY}, RGB565_White, font_tgx_OpenSans_12, true);
+
+  itemY = itemY + 20;
+  sprintf(buf, "%s", "Restore Settings to Default");
+  im.drawText(buf, {xSetMenu+10, ySettingsOffset+itemY}, RGB565_White, font_tgx_OpenSans_12, true);
+
+  itemY = itemY + 20;
+  sprintf(buf, "%s", "Erase Saved Settings");
+  im.drawText(buf, {xSetMenu+10, ySettingsOffset+itemY}, RGB565_White, font_tgx_OpenSans_12, true);
+
+  itemY = itemY + 20;
+  sprintf(buf, "%s", "Exit Settings");
+  im.drawText(buf, {xSetMenu+10, ySettingsOffset+itemY}, RGB565_White, font_tgx_OpenSans_12, true);
+
+  // Deal with settings here
+  if (c != 0) {
+    if (currentSettingsMenuSelection == 0) {  // Mic Bias Voltage
+      micBiasVoltage = micBiasVoltage + (c*.1);
+      if (micBiasVoltage < 0) {
+        micBiasVoltage = 0;
+      }
+      if (micBiasVoltage > 6) {
+        micBiasVoltage = 6;
+      }
+      // Set changes for mic bias voltage here?
+    }
+  }
+
+  cButton = clickEncoder2.getButton();
+  if (cButton == ClickEncoder::Clicked){
+    if (currentSettingsMenuSelection == 1){
+      //Save current settings
+      sprintf(popUpMessage, "%s", "Saved Settings");
+      popUpActive = true;
+      popUpTimeOut = POP_UP_TIMEOUT;
+    }  
+
+    if (currentSettingsMenuSelection == 2){
+      //Restore settings
+      sprintf(popUpMessage, "%s", "Restore Settings");
+      popUpActive = true;
+      popUpTimeOut = POP_UP_TIMEOUT;
+    } 
+
+    if (currentSettingsMenuSelection == 3){
+      //Erase Settings
+      sprintf(popUpMessage, "%s", "Erase Settings");
+      popUpActive = true;
+      popUpTimeOut = POP_UP_TIMEOUT;
+    } 
+
+    if (currentSettingsMenuSelection == 4){
+      //Exit Settings
+      currentQuickMenuLevel = 0;
+    } 
+  }
+}
+
+void drawPopUp() {
+  im.fillRect({100,100}, {120,20}, RGB565_Black);
+  im.drawRect({100,100}, {120,20}, RGB565_Red);
+  im.drawText(popUpMessage, {120,115}, RGB565_White, font_tgx_OpenSans_12, true);
+  popUpTimeOut = popUpTimeOut - 1;
+  if (popUpTimeOut < 0) {
+    popUpActive = false;
+  }
+}
 
 // Floating point map function declatration
 double mapf(double x, double in_min, double in_max, double out_min, double out_max) {
@@ -1192,12 +1441,15 @@ void loop() {
 
   b = clickEncoder.getValue();
   c = clickEncoder2.getValue();
+  bButton = clickEncoder.getButton();
+  if (bButton == ClickEncoder::Clicked){
+    b=999;
+  }
 
   drawBKGRND();
   drawFFT();
   drawVUmeters();
   drawEQSliders();
-  //drawCompressor();
   drawInOutSliders();
   drawButtons();
   display.overlayFPS(fb);
@@ -1208,15 +1460,19 @@ void loop() {
     currentQuickMenuLevel = 0;
   }
 
+  if (popUpActive == true){
+    drawPopUp();
+  }
+
   display.update(fb);
   yield();
 
-  if (spectrumFlag == -1) {  // turn this off
-    b = clickEncoder.getButton();
-    if (b == ClickEncoder::Clicked) {
-      spectrumFlag = 0;
-    }
-  }
+  //if (spectrumFlag == -1) {  // turn this off
+  //  b = clickEncoder.getButton();
+  //  if (b == ClickEncoder::Clicked) {
+  //    spectrumFlag = 0;
+  //  }
+  //}
 }
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
