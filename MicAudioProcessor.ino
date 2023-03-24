@@ -99,7 +99,7 @@ const float sample_rate_Hz = 44100.0f;  // overboard for our appliation, but why
 const int audio_block_samples = 128;    // max numb of blocks, and the default
 AudioSettings_F32 audio_settings(sample_rate_Hz, audio_block_samples);
 
-AudioControlSGTL5000 audioShield;
+AudioControlSGTL5000_Extended audioShield;
 
 AudioInputI2S_F32 audioInput(audio_settings);
 AudioInputUSB_F32 audioInUSB1(audio_settings);
@@ -176,9 +176,8 @@ AudioConnection_F32 patchCord13(Dynamics, peakPost);
 #define MUPFLAG 0;
 #define MYMUPGAIN 0.0f;
 
-// Ben, this prob doesn't belong here
-// It's just a place holder for the MicBiasVoltage setting
-float micBiasVoltage = 0.0;
+// MicBiasVoltage default setting
+#define MICBIASVOLTAGE 0.0f;
 
 // Popups
 #define POP_UP_TIMEOUT 50;
@@ -266,13 +265,14 @@ int compMenuBox[6][4] = {
 
 //Settings Menu
 int currentSettingsMenuSelection = 0;
-const int SETTINGS_MENU_SELECTIONS = 4;
-int settingsMenuBox[6][4] = {
+const int SETTINGS_MENU_SELECTIONS = 6;
+int settingsMenuBox[7][4] = {
   { 60,  47, 200, 17 },   // Mic Bias Volt
   { 60,  67, 200, 17 },   // Save current
   { 60,  87, 200, 17 },   // Restore Settings
-  { 60, 107, 200, 17 },   // Erase Saved
-  { 60, 127, 200, 17 },   // Exit
+  { 60, 107, 200, 17 },   // default settings Saved
+  { 60, 127, 200, 17 },   // erase settings
+  { 60, 147, 200, 17 }   // Exit
 };
 
 
@@ -319,6 +319,7 @@ struct ConfigSaveSet {
   float myAMGheadroom;
   int mupFlag;
   float myMUPgain;
+  float myMicBiasVoltage;
 } mySaveSet;
 
 int b;
@@ -1295,6 +1296,10 @@ void drawSettingsMenu(int b, int c) {
   im.drawText(buf, {xSetMenu+10, ySettingsOffset+itemY}, RGB565_White, font_tgx_OpenSans_12, true);
 
   itemY = itemY + 20;
+  sprintf(buf, "%s", "Restore Saved Settings");
+  im.drawText(buf, {xSetMenu+10, ySettingsOffset+itemY}, RGB565_White, font_tgx_OpenSans_12, true);
+  
+  itemY = itemY + 20;
   sprintf(buf, "%s", "Restore Settings to Default");
   im.drawText(buf, {xSetMenu+10, ySettingsOffset+itemY}, RGB565_White, font_tgx_OpenSans_12, true);
 
@@ -1312,11 +1317,12 @@ void drawSettingsMenu(int b, int c) {
       micBiasVoltage = micBiasVoltage + (c*.1);
       if (micBiasVoltage < 0) {
         micBiasVoltage = 0;
+        audioShield.micBiasDisable();
       }
       if (micBiasVoltage > 6) {
         micBiasVoltage = 6;
       }
-      // Set changes for mic bias voltage here?
+      audioShield.micBiasEnable(micBiasVoltage);
     }
   }
 
@@ -1324,6 +1330,7 @@ void drawSettingsMenu(int b, int c) {
   if (cButton == ClickEncoder::Clicked){
     if (currentSettingsMenuSelection == 1){
       //Save current settings
+      writeToFile();
       sprintf(popUpMessage, "%s", "Saved Settings");
       popUpActive = true;
       popUpTimeOut = POP_UP_TIMEOUT;
@@ -1331,19 +1338,29 @@ void drawSettingsMenu(int b, int c) {
 
     if (currentSettingsMenuSelection == 2){
       //Restore settings
-      sprintf(popUpMessage, "%s", "Restore Settings");
+      readFromFile();
+      sprintf(popUpMessage, "%s", "Restored Settings");
       popUpActive = true;
       popUpTimeOut = POP_UP_TIMEOUT;
     } 
 
     if (currentSettingsMenuSelection == 3){
-      //Erase Settings
-      sprintf(popUpMessage, "%s", "Erase Settings");
+      //Factory Default settings
+      resetDefault();
+      sprintf(popUpMessage, "%s", "Defaulted Settings");
       popUpActive = true;
       popUpTimeOut = POP_UP_TIMEOUT;
     } 
 
     if (currentSettingsMenuSelection == 4){
+      //Erase Settings
+      deleteFile();
+      sprintf(popUpMessage, "%s", "Erase Settings");
+      popUpActive = true;
+      popUpTimeOut = POP_UP_TIMEOUT;
+    } 
+
+    if (currentSettingsMenuSelection == 5){
       //Exit Settings
       currentQuickMenuLevel = 0;
     } 
